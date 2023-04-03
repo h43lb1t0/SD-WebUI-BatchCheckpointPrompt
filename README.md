@@ -1,4 +1,4 @@
-# CheckpointPromptLoop
+# batch Checkpoints with Prompt
 a script for [AUTOMATIC1111](https://github.com/AUTOMATIC1111/stable-diffusion-webui)
 
 ### what does it do?
