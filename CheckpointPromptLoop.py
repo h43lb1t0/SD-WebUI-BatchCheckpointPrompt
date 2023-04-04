@@ -19,8 +19,19 @@ except:
 
 AlwaysVisible = object()
 
+class Debug():
+
+    def __init__(self, debug=False):
+        self.debug = debug
+
+    def log(self, msg):
+        if self.debug:
+            print(f"\n\tDEBUG: {msg}\n")
+    
 
 class CheckpointLoopScript(scripts.Script):
+
+    
 
     def __init__(self) -> None:
         current_basedir = scripts.basedir()
@@ -30,6 +41,8 @@ class CheckpointLoopScript(scripts.Script):
         self.save_path_text2img = os.path.join(save_path_txt2img, "CheckpointPromptLoop")
         self.save_path_imgt2img = os.path.join(save_path_img2img, "CheckpointPromptLoop")
         self.is_img2_img = None
+        self.margin_size = 0
+        self.debugger = Debug(False)
 
 
 
@@ -49,16 +62,18 @@ class CheckpointLoopScript(scripts.Script):
     def ui(self, is_img2img):
         self.checkpoints_input = gr.inputs.Textbox(lines=5, label="Checkpoint Names",placeholder="Enter checkpoint names")
         self.checkpoints_promt = gr.inputs.Textbox(lines=5, label="Prompt templates for Checkpoints",placeholder="checkpoint text")
+        self.margin_size = gr.Slider(label="Grid margins (px)", minimum=0, maximum=10, value=0, step=1)
         
-        return [self.checkpoints_input, self.checkpoints_promt]
+        return [self.checkpoints_input, self.checkpoints_promt, self.margin_size]
     
     def show(self, is_img2img):
         self.is_img2_img = is_img2img
         return True
     
 
-    def run(self, p, checkpoints_text, checkpoints_promt):
+    def run(self, p, checkpoints_text, checkpoints_promt, margin_size):
         generated_image = []
+        self.margin_size = margin_size
         
         checkpoints, promts = self.get_checkpoints_and_prompt(checkpoints_text, checkpoints_promt)
         
@@ -108,21 +123,29 @@ class CheckpointLoopScript(scripts.Script):
     def create_grid(self, generated_image, checkpoints):
         total_width = 0
         max_height = 0
-        """ for img in generated_image:
-            total_width += img.images[0].size[0] + 2
-            max_height = max(max_height, img.images[0].size[1]) """
 
-        total_width = generated_image[0].images[0].size[0] * len(generated_image)
-        max_height = generated_image[0].images[0].size[1]
+        spacing = self.margin_size
 
-        result_img = Image.new('RGB', (total_width, max_height))
+
+        total_width = generated_image[0].images[0].size[0] * len(generated_image) + spacing * (len(generated_image) - 1)
+
         
 
-        # 
-        x_offset = 0
+        img_with_legend = []
         for i, img in enumerate(generated_image):
-            result_img.paste(self.add_legend(img.images[0], checkpoints[i]), (x_offset, 0))
-            x_offset += img.images[0].size[0] + 2
+            img_with_legend.append(self.add_legend(img.images[0], checkpoints[i]))
+
+        for img in img_with_legend:
+            max_height = max(max_height, img.size[1])
+
+        result_img = Image.new('RGB', (total_width, max_height), "white")
+
+        x_offset = -spacing
+        for i, img in enumerate(img_with_legend):
+            y_offset = max_height - img.size[1]
+            result_img.paste((238,238,228), (x_offset, 0, x_offset + img.size[0] + spacing, max_height + spacing)) 
+            result_img.paste(img, (x_offset + spacing, y_offset + spacing)) 
+            x_offset += img.size[0] + spacing
 
         def getFileName(save_path):
             if not os.path.exists(save_path):
@@ -156,27 +179,41 @@ class CheckpointLoopScript(scripts.Script):
     
     def add_legend(self, img, checkpoint_name):
 
+        self.debugger.log("Adding legend is called")
+
         def find_available_font():
-            font_list = fm.findSystemFonts(fontpaths=None, fontext='ttf')
 
-            for font_file in font_list:
-                font_path = os.path.abspath(font_file)
-                if os.path.isfile(font_path):
-                    return font_path
+            font_path = fm.findfont(fm.FontProperties(family='DejaVu Sans'))
 
-            return None
+            if font_path is None:
+                font_list = fm.findSystemFonts(fontpaths=None, fontext='ttf')
+
+                for font_file in font_list:
+                    font_path = os.path.abspath(font_file)
+                    if os.path.isfile(font_path):
+                        self.debugger.log("font list font")
+                        return font_path
+                    
+                self.debugger.log("fdefault font")
+                return ImageFont.load_default()
+            self.debugger.log("DejaVu font")
+            return font_path
         
         def strip_checkpoint_name(checkpoint_name):
-            return os.path.basename(checkpoint_name)
+            checkpoint_name = os.path.basename(checkpoint_name)
+            return re.sub(r'\[.*?\]', '', checkpoint_name).strip()
+             
 
 
         def calculate_font(draw, text, width):
+            width -= 16
             default_font_path = find_available_font()
-            font_size = 25
+            font_size = 1
             font = ImageFont.truetype(default_font_path, font_size) if default_font_path else ImageFont.load_default()
             text_width, text_height = draw.textsize(text, font)
             
             while text_width < width:
+                self.debugger.log(f"text width: {text_width}, img width: {width}")
                 font_size += 1
                 font = ImageFont.truetype(default_font_path, font_size) if default_font_path else ImageFont.load_default()
                 text_width, text_height = draw.textsize(text, font)
