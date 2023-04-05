@@ -52,7 +52,9 @@ class CheckpointLoopScript(scripts.Script):
         info = modules.sd_models.get_closet_checkpoint_match(checkpoint)
         modules.sd_models.reload_model_weights(shared.sd_model, info)
         p.prompt = prompt
-        return process_images(p)
+        processed = process_images(p)
+        modules.sd_models.unload_model_weights(shared.sd_model, info)
+        return processed
 
 
 
@@ -77,10 +79,11 @@ class CheckpointLoopScript(scripts.Script):
         
         checkpoints, promts = self.get_checkpoints_and_prompt(checkpoints_text, checkpoints_promt)
         
+        base_prompt = p.prompt
 
         for i, checkpoint in enumerate(checkpoints):
             # Replace '{prompt}' with the appropriate prompt for your use case
-            prompt = promts[i].replace("{prompt}", p.prompt)
+            prompt = promts[i].replace("{prompt}", base_prompt)
             generated_image.append(self.process_images_with_checkpoint(p, prompt, checkpoint.strip()))
 
     
