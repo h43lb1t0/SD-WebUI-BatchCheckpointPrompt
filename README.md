@@ -22,7 +22,7 @@ The Prompt for deliberate:
 The prompt for RealisticVision:
 "RAW photo, one young woman, long blonde hair, wearing a black skirt and a white blouse,standing in nature, (high detailed skin:1.2), 8k uhd, dslr, soft lighting, high quality, film grain, Fujifilm XT3"
 <br>
-![grid created by the Script](ihttps://raw.githubusercontent.com/h43lb1t0/CheckpointPromptLoop/main/img/grid.png)
+![grid created by the Script](https://raw.githubusercontent.com/h43lb1t0/BatchCheckpointPrompt/main/img/grid.png)
 
 
 
