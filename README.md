@@ -27,6 +27,8 @@ The prompt for RealisticVision:
 
 
 ### bugs
+
 send to img2img does not work correctly, because only the prompt of the first image is sent. The correct data is stored in the image.
 <br>
 works with [Dynamic Prompts](https://github.com/adieyal/sd-dynamic-prompts), but jinja2 templates can cause unexpected behavior.
+
