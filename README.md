@@ -32,3 +32,9 @@ send to img2img does not work correctly, because only the prompt of the first im
 <br>
 works with [Dynamic Prompts](https://github.com/adieyal/sd-dynamic-prompts), but jinja2 templates can cause unexpected behavior.
 
+<br><br>
+if you find any other bugs besides the ones mentioned above, open a new bug. Please give as many details as possible
+
+### contribution
+If you want to contribute something to the script just open a pull request and I will check it. There is still some work to do.
+
