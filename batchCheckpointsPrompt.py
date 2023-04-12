@@ -47,6 +47,7 @@ class CheckpointLoopScript(scripts.Script):
         self.debugger = Debug(False)
         self.font = None
         self.text_margin_left_and_right = 16
+        self.n_iter = 1
 
     def title(self):
         return "Batch Checkpoint and Prompt"
@@ -68,10 +69,15 @@ class CheckpointLoopScript(scripts.Script):
     # loads the new checkpoint and replaces the original prompt with the new one
     # and processes the image(s)
 
-    def process_images_with_checkpoint(self, p, prompt, checkpoint):
+    def process_images_with_checkpoint(self, p, prompt_and_batch_count, checkpoint):
         info = modules.sd_models.get_closet_checkpoint_match(checkpoint)
         modules.sd_models.reload_model_weights(shared.sd_model, info)
-        p.prompt = prompt
+        p.prompt = prompt_and_batch_count[0]
+        if prompt_and_batch_count[1] == -1:
+            p.n_iter = self.n_iter
+        else:
+            p.n_iter = prompt_and_batch_count[1]
+        self.debugger.log(f"batch count {p.n_iter}")
         processed = process_images(p)
         # unload the checkpoint to save vram
         modules.sd_models.unload_model_weights(shared.sd_model, info)
@@ -86,11 +92,15 @@ class CheckpointLoopScript(scripts.Script):
             checkpoints_text, checkpoints_prompt)
 
         base_prompt = p.prompt
+        self.n_iter = p.n_iter
 
         for i, checkpoint in enumerate(checkpoints):
-            prompt = promts[i].replace("{prompt}", base_prompt)
+            prompt_and_batch_count = (promts[i][0].replace(
+                "{prompt}", base_prompt), promts[i][1])
+            self.debugger.log(
+                f"Propmpt with replace: {prompt_and_batch_count[0]}")
             generated_image.append(self.process_images_with_checkpoint(
-                p, prompt, checkpoint.strip()))
+                p, prompt_and_batch_count, checkpoint))
 
         img_grid = self.create_grid(generated_image, checkpoints)
 
@@ -109,8 +119,19 @@ class CheckpointLoopScript(scripts.Script):
         checkpoints = [checkpoint.replace('\n', '').strip(
         ) for checkpoint in checkpoints if checkpoints if not checkpoint.isspace() and checkpoint != '']
         promts = checkpoints_prompt.split(";")
-        promts = [prompt.replace('\n', '').strip(
+        prompts = [prompt.replace('\n', '').strip(
         ) for prompt in promts if not prompt.isspace() and prompt != '']
+
+        # extracts the batch count from the prompt if specified
+        for i, prompt in enumerate(prompts):
+            number_match = re.search(r"\{\{-?[0-9]+\}\}", prompt)
+            if number_match:
+                # Extract the number from the match object
+                number = int(number_match.group(0)[2:-2])
+                number = -1 if number < 1 else number
+                prompts[i] = (re.sub(r"\{\{-?[0-9]+\}\}", '', prompt), number)
+            else:
+                prompts[i] = (prompt, -1)
 
         for checkpoint in checkpoints:
 
@@ -118,14 +139,14 @@ class CheckpointLoopScript(scripts.Script):
             if info is None:
                 raise RuntimeError(f"Unknown checkpoint: {checkpoint}")
 
-        if len(promts) != len(checkpoints):
+        if len(prompts) != len(checkpoints):
             raise RuntimeError(
                 f"amount of prompts don't match with amount of checkpoints")
 
-        if len(promts) == 0:
+        if len(prompts) == 0:
             raise RuntimeError(f"can't run without a checkpoint and prompt")
 
-        return checkpoints, promts
+        return checkpoints, prompts
 
     def create_grid(self, generated_image, checkpoints):
 
@@ -156,8 +177,8 @@ class CheckpointLoopScript(scripts.Script):
 
         spacing = self.margin_size
 
-        total_width = generated_image[0].images[0].size[0] * \
-            len(generated_image) + spacing * (len(generated_image) - 1)
+        for img in generated_image:
+            total_width += img.images[0].size[0] + spacing
 
         img_with_legend = []
         for i, img in enumerate(generated_image):
@@ -176,16 +197,13 @@ class CheckpointLoopScript(scripts.Script):
             y_offset = max_height - img.size[1]
             result_img.paste(((0, 0, 0)), (x_offset, 0, x_offset +
                              img.size[0] + spacing, max_height + spacing))
-            # TODO: check if the margin is black and the text background white
             result_img.paste(((255, 255, 255)), (x_offset, 0,
                              x_offset + img.size[0], max_height - min_height))
             result_img.paste(img, (x_offset + spacing, y_offset))
 
             x_offset += img.size[0] + spacing
 
-        is_img2img = self.is_img2img
-
-        if is_img2img:
+        if self.is_img2img:
             result_img.save(getFileName(self.save_path_imgt2img))
         else:
             result_img.save(getFileName(self.save_path_text2img))
@@ -254,7 +272,7 @@ class CheckpointLoopScript(scripts.Script):
 
         new_draw = ImageDraw.Draw(new_image)
 
-        new_draw.text((self.text_margin_left_and_right/2, 0),
+        new_draw.text((self.text_margin_left_and_right/4, 0),
                       checkpoint_name, fill="black", font=font)
 
         return new_image
