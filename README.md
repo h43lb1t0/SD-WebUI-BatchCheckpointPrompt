@@ -23,7 +23,9 @@ The prompt for RealisticVision:
 "RAW photo, one young woman, long blonde hair, wearing a black skirt and a white blouse,standing in nature, (high detailed skin:1.2), 8k uhd, dslr, soft lighting, high quality, film grain, Fujifilm XT3"
 <br>
 ![grid created by the Script](https://raw.githubusercontent.com/h43lb1t0/BatchCheckpointPrompt/main/img/grid.png)
-
+<br>
+by adding ```{{int value}}``` at the end of the prompt you can set the batch count for the corresponding checkpoint.
+If no value is specified, the batch count selected in the UI will be used.
 
 
 ### bugs
