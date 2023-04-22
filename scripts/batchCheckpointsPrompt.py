@@ -1,3 +1,4 @@
+import json
 import os
 import re
 import subprocess
@@ -8,7 +9,9 @@ import modules
 import modules.scripts as scripts
 import modules.shared as shared
 from modules.processing import process_images
+from modules.ui_components import DropdownMulti, ToolButton
 from PIL import Image, ImageDraw, ImageFont
+
 
 try:
     import matplotlib.font_manager as fm
@@ -31,6 +34,56 @@ class Debug():
             pprint(msg)
 
 
+class Save():
+
+    def __init__(self):
+        self.file_name = "batchCheckpointPromptValues.json"
+        self.debugger = Debug(False)
+
+    def read_file(self):
+        try:
+            with open(self.file_name, 'r') as f:
+                data = json.load(f)
+            return data
+        except FileNotFoundError:
+            return {"None": ("", "")}
+
+    def store_values(self, name, checkpoints, prompts):
+        data = {}
+
+        # If the JSON file already exists, load the data into the dictionary
+        if os.path.exists(self.file_name):
+            data = self.read_file()
+
+        # Check if the name already exists in the data dictionary
+        if name in data:
+            raise ValueError("Name already exists")
+
+        # Add the data to the dictionary
+        data[name] = (checkpoints, prompts)
+
+        # Append the new data to the JSON file
+        with open(self.file_name, 'w') as f:
+            json.dump(data, f)
+
+    def read_value(self, name):
+        name = name[0]
+        data = {}
+
+        if os.path.exists(self.file_name):
+            data = self.read_file()
+        else:
+            raise RuntimeError("no save file found")
+
+        x, y = tuple(data[name])
+
+        return x, y
+
+    def get_keys(self):
+        data = self.read_file()
+        return list(data.keys())
+
+
 class CheckpointLoopScript(scripts.Script):
 
     def __init__(self) -> None:
@@ -48,19 +101,60 @@ class CheckpointLoopScript(scripts.Script):
         self.font = None
         self.text_margin_left_and_right = 16
         self.n_iter = 1
+        self.fill_values_symbol = "\U0001f4d2"  # 📒
+        self.save_symbol = "\U0001F4BE"  # 💾
+        # self.reload_symbol = "\U0001F504" # 🔄
+        self.save = Save()
 
     def title(self):
         return "Batch Checkpoint and Prompt"
 
+    def save_inputs(self, save_name, checkpoints, prompt_templates):
+        self.save.store_values(
+            save_name.strip(), checkpoints.strip(), prompt_templates.strip())
+        self.debugger.log("Saving checkpoints")
+
+    def load_inputs(self, name):
+        values = self.save.read_value(name.strip())
+        self.debugger.pLog(values)
+
+    def get_checkpoints(self):
+        return ',\n'.join(list(modules.sd_models.checkpoints_list))
+
     def ui(self, is_img2img):
         self.checkpoints_input = gr.inputs.Textbox(
             lines=5, label="Checkpoint Names", placeholder="Checkpoint names (separated with comma)")
+        self.fill_checkpoints_button = ToolButton(
+            value=self.fill_values_symbol, visible=True)
         self.checkpoints_prompt = gr.inputs.Textbox(
             lines=5, label="Prompts/prompt templates for Checkpoints", placeholder="prompts/prompt templates (separated with semicolon)")
         self.margin_size = gr.Slider(
             label="Grid margins (px)", minimum=0, maximum=10, value=0, step=1)
 
-        return [self.checkpoints_input, self.checkpoints_prompt, self.margin_size]
+        # save and load inputs
+        self.save_name = gr.inputs.Textbox(
+            lines=1, label="save name", placeholder="save name")
+        self.save_button = ToolButton(value=self.save_symbol, visible=True)
+        # self.save_label = gr.outputs.Label("")
+
+        # TODO add reload button for dropdown
+        keys = self.save.get_keys()
+        self.saved_inputs_dropdown = DropdownMulti(
+            choices=keys, label="Saved values")
+        self.load_button = ToolButton(
+            value=self.fill_values_symbol, visible=True)
+        # self.update_save_list_button = ToolButton(value=self.reload_symbol, visible=True)
+
+        # Actions
+
+        self.fill_checkpoints_button.click(
+            fn=self.get_checkpoints, outputs=[self.checkpoints_input])
+        self.save_button.click(fn=self.save_inputs, inputs=[
+                               self.save_name, self.checkpoints_input, self.checkpoints_prompt])
+        self.load_button.click(fn=self.save.read_value, inputs=[self.saved_inputs_dropdown], outputs=[
+                               self.checkpoints_input, self.checkpoints_prompt])
+
+        return [self.checkpoints_input, self.fill_checkpoints_button, self.checkpoints_prompt, self.margin_size]
 
     def show(self, is_img2img):
         self.is_img2_img = is_img2img
@@ -85,7 +179,7 @@ class CheckpointLoopScript(scripts.Script):
 
     def run(self, p, checkpoints_text, checkpoints_prompt, margin_size):
 
-        generated_image = []
+        image_processed = []
         self.margin_size = margin_size
 
         checkpoints, promts = self.get_checkpoints_and_prompt(
@@ -99,19 +193,27 @@ class CheckpointLoopScript(scripts.Script):
                 "{prompt}", base_prompt), promts[i][1])
             self.debugger.log(
                 f"Propmpt with replace: {prompt_and_batch_count[0]}")
-            generated_image.append(self.process_images_with_checkpoint(
-                p, prompt_and_batch_count, checkpoint))
+            images_temp = self.process_images_with_checkpoint(
+                p, prompt_and_batch_count, checkpoint)
 
-        img_grid = self.create_grid(generated_image, checkpoints)
+            image_processed.append(images_temp)
 
-        generated_image[0].images.insert(0, img_grid)
-        generated_image[0].index_of_first_image = 1
-        for i, image in enumerate(generated_image):
+            # when the processing was interrupted,
+            # the remaining checkpoints won't be loaded
+            if len(images_temp.images) < p.n_iter * p.batch_size:
+                self.debugger.log("interupt")
+                break
+
+        img_grid = self.create_grid(image_processed, checkpoints)
+
+        image_processed[0].images.insert(0, img_grid)
+        image_processed[0].index_of_first_image = 1
+        for i, image in enumerate(image_processed):
             if i > 0:
-                for j in range(len(generated_image[i].images)):
-                    generated_image[0].images.append(
-                        generated_image[i].images[j])
-        return generated_image[0]
+                for j in range(len(image_processed[i].images)):
+                    image_processed[0].images.append(
+                        image_processed[i].images[j])
+        return image_processed[0]
 
     def get_checkpoints_and_prompt(self, checkpoints_text, checkpoints_prompt):
 
@@ -148,11 +250,11 @@ class CheckpointLoopScript(scripts.Script):
 
         return checkpoints, prompts
 
-    def create_grid(self, generated_image, checkpoints):
+    def create_grid(self, image_processed, checkpoints):
 
         def getFileName(save_path):
             if not os.path.exists(save_path):
-                os.mkdir(save_path)
+                os.mkdirs(save_path)
 
             files = os.listdir(save_path)
             pattern = r"img_(\d{4})"
@@ -177,11 +279,11 @@ class CheckpointLoopScript(scripts.Script):
 
         spacing = self.margin_size
 
-        for img in generated_image:
+        for img in image_processed:
             total_width += img.images[0].size[0] + spacing
 
         img_with_legend = []
-        for i, img in enumerate(generated_image):
+        for i, img in enumerate(image_processed):
             img_with_legend.append(self.add_legend(
                 img.images[0], checkpoints[i]))
 
