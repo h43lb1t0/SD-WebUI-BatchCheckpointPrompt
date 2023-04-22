@@ -154,7 +154,7 @@ class CheckpointLoopScript(scripts.Script):
         self.load_button.click(fn=self.save.read_value, inputs=[self.saved_inputs_dropdown], outputs=[
                                self.checkpoints_input, self.checkpoints_prompt])
 
-        return [self.checkpoints_input, self.fill_checkpoints_button, self.checkpoints_prompt, self.margin_size]
+        return [self.checkpoints_input, self.checkpoints_prompt, self.margin_size]
 
     def show(self, is_img2img):
         self.is_img2_img = is_img2img
