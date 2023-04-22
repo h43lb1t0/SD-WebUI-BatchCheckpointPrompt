@@ -5,9 +5,24 @@ a script for [AUTOMATIC1111](https://github.com/AUTOMATIC1111/stable-diffusion-w
 Creates images with with different checkpoints and prompts. Either different prompts for each checkpoint or the base prompt is inserted into each template for the checkpoint.
 
 ### Instalation
+can now be installed like an extension: <br>
+extensions > install from URL
+ <br><br>
 copy the batchCheckpointsPrompt.py into ```/stable-diffusion-webui/scripts```
 
 ### Usage
+
+#### Load Checkpoint names
+press the 📒 button below the checkpoint text field and all checkpoints will be automatically loaded into the text field
+
+#### Save and Load
+Save your checkpoint prompt combinations and load them again at the next startup
+Give your saves a unique name, and press the 💾 button. So far only the console shows if the save worked. <br>
+Reload a saved stand by selecting the name from the Dropdown menu and then pressing the 📒 button below it.
+<br>
+The saved values appear only after a restart of the UI in the Dropdown menu, that should definitely be fixed later on.
+
+#### Prompts
 In the Positive prompt write your prompt without any trigger words. E.g. "one young woman, long blonde hair, wearing a black skirt and a white blouse,standing in nature".
 In the script add the checkpoint names in the first input box. Separate the names with a comma.
 In the second textbox you write the prompts for each checkpoint in the same order as the checkpoints. at the place where your base prompt should be inserted you write ``{prompt}``. The prompts are separated with a semicolon.
