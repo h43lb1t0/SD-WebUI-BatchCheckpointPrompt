@@ -10,10 +10,17 @@ extensions > install from URL
  <br><br>
 copy the batchCheckpointsPrompt.py into ```/stable-diffusion-webui/scripts```
 
+<hr>
+
 ### Usage
+
+detailed docs [here](https://github.com/h43lb1t0/BatchCheckpointPrompt/blob/main/HelpBatchCheckpointsPrompt.md) and in the help tab in the script
 
 #### Load Checkpoint names
 press the 📒 button below the checkpoint text field and all checkpoints will be automatically loaded into the text field
+
+#### get prompts
+If you have installed the [Civitai Helper2](https://github.com/butaixianran/Stable-Diffusion-Webui-Civitai-Helper) extension the 📒 button below the prompt text field will load the previews prompt for each Checkpoint
 
 #### Save and Load
 Save your checkpoint prompt combinations and load them again at the next startup
@@ -42,13 +49,20 @@ The prompt for RealisticVision:
 by adding ```{{int value}}``` at the end of the prompt you can set the batch count for the corresponding checkpoint.
 If no value is specified, the batch count selected in the UI will be used.
 
+<hr>
 
 ### bugs
 send to img2img does not work correctly, because only the prompt of the first image is sent. The correct data is stored in the image.
 <br>
 works with [Dynamic Prompts](https://github.com/adieyal/sd-dynamic-prompts), but jinja2 templates can cause unexpected behavior.
 <br><br>
-if you find any other bugs besides the ones mentioned above, open a new bug. Please give as many details as possible
+if you find any other bugs besides the ones mentioned above, open a new Issue. Please give as many details as possible
 
 ### contribution
 If you want to contribute something to the script just open a pull request and I will check it. There is still some work to do.
+
+### Roadmap
+
+- [ ] add negative prompt
+- [ ] add basemodel version next to the Checkpointname
+- [ ] reload button for save and load
