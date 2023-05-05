@@ -1,17 +1,45 @@
+import inspect
 import json
 import os
 import re
 import subprocess
 from pprint import pprint
+import requests
+from typing import List, Tuple, Union
 
 import gradio as gr
 import modules
 import modules.scripts as scripts
 import modules.shared as shared
 from modules.processing import process_images
-from modules.ui_components import DropdownMulti, ToolButton
+from modules.ui_components import DropdownMulti, ToolButton, FormRow, FormColumn
 from PIL import Image, ImageDraw, ImageFont
 
+
+class Logger():
+    """
+        Log class with different styled logs.
+        debugging can be enabled/disabled for the whole instance
+    """
+
+    def __init__(self, debug=False):
+        self.debug = debug
+
+    def debug_log(self, msg: str) -> None:
+        if self.debug:
+            print(f"\n\tDEBUG: {msg}")
+            caller_frame = inspect.currentframe().f_back
+            caller_function_name = caller_frame.f_code.co_name
+            caller_class_name = caller_frame.f_locals.get(
+                'self', None).__class__.__name__
+            print(f"\tat: {caller_class_name}.{caller_function_name}\n")
+
+    def pLog(self, msg: any) -> None:
+        if self.debug:
+            pprint(msg)
+
+    def log_info(self, msg: str) -> None:
+        print(f"INFO: Batch-Checkpoint-Prompt: {msg}")
 
 try:
     import matplotlib.font_manager as fm
@@ -20,25 +48,128 @@ except:
     import matplotlib.font_manager as fm
 
 
-class Debug():
+class Utils():
+    """
+        methods that are needed in different classes
+    """
+    def __init__(self):
+        self.logger = Logger(False)
+        self.held_md_file_name = "HelpBatchCheckpointsPrompt"
+        self.held_md_url = f"https://raw.githubusercontent.com/h43lb1t0/BatchCheckpointPrompt/main/{self.held_md_file_name}.md"
 
-    def __init__(self, debug=False):
-        self.debug = debug
+    def remove_index_from_string(self, input: str) -> str:
+        return re.sub(r"@index:\d+", "", input).strip()
 
-    def log(self, msg):
-        if self.debug:
-            print(f"\n\tDEBUG: {msg}\n")
+    def get_clean_checkpoint_path(self, checkpoint: str) -> str:
+        return re.sub(r'\[.*?\]', '', checkpoint).strip()
 
-    def pLog(self, msg):
-        if self.debug:
-            pprint(msg)
+    def getCheckpointListFromInput(self, checkpoints_text: str) -> List[str]:
+        self.logger.debug_log(f"checkpoints: {checkpoints_text}")
+        checkpoints_text = self.remove_index_from_string(checkpoints_text)
+        checkpoints = checkpoints_text.split(",")
+        checkpoints = [checkpoint.replace('\n', '').strip(
+        ) for checkpoint in checkpoints if checkpoints if not checkpoint.isspace() and checkpoint != '']
+        return checkpoints
+
+    def get_help_md(self) -> None:
+        md = "could not get help file. Check Github for more information"
+        if os.path.isfile(self.held_md_file_name):
+            with open(self.held_md_file_name) as f:
+                md = f.read()
+        else:
+            result = requests.get(self.held_md_url)
+            if result.status_code == 200:
+                with open(self.held_md_file_name, "wb") as file:
+                    file.write(result.content)
+                return self.get_help_md()
+        return md
+
+    def add_index_to_string(self, text: str, is_checkpoint: bool = True) -> str:
+        text_string = ""
+        if is_checkpoint:
+            text = self.getCheckpointListFromInput(text)
+            for i, checkpoint in enumerate(text):
+                text_string += f"{self.remove_index_from_string(checkpoint)} @index:{i},\n"
+            return text_string
+        else:
+            text = text.split(";")
+            text = [text.replace('\n', '').strip(
+            ) for text in text if not text.isspace() and text != '']
+            for i, text in enumerate(text):
+                text_string += f"{self.remove_index_from_string(text)} @index:{i};\n\n"
+            return text_string
+
+
+
+class CivitaihelperPrompts():
+    """
+        some code copyed from https://github.com/butaixianran/Stable-Diffusion-Webui-Civitai-Helper (scripts/ch_lib/model.py)
+        this whole thing will not do the desired thing when the above mentioned exitension is not installed and used
+    """
+
+    def get_custom_model_folder(self) -> str:
+        if shared.cmd_opts.ckpt_dir and os.path.isdir(shared.cmd_opts.ckpt_dir):
+            return shared.cmd_opts.ckpt_dir
+        else:
+            return os.path.join(scripts.basedir(), "models", "Stable-diffusion")
+
+    def __init__(self):
+        self.model_path = self.get_custom_model_folder()
+        self.utils = Utils()
+        self.logger = Logger(False)
+
+    def get_civitAi_prompt_from_model(self, path: str) -> str:
+        path = path.replace(".ckpt", ".civitai.info").replace(
+            ".safetensors", ".civitai.info")
+        path = self.utils.get_clean_checkpoint_path(path)
+        path = os.path.join(self.model_path, path)
+        self.logger.debug_log(f"{path} -> is file {os.path.isfile(path)}")
+        fullPath = os.path.realpath(path)
+        if not os.path.exists(os.path.realpath(path)):
+            return "{prompt};"
+        model_info = None
+        with open(os.path.realpath(path), 'r') as f:
+            try:
+                model_info = json.load(f)
+            except Exception as e:
+                return "{prompt};"
+        try:
+            self.logger.debug_log(f"len: {len(model_info['images'])}")
+            for i in range(0, len(model_info['images'])):
+                try:
+                    info = model_info['images'][i]['meta']['prompt']
+                    self.logger.debug_log(f"Prompt: {info}")
+                    if info:
+                        return f"{info};"
+                except:
+                    pass
+            return "{prompt};"
+        except:
+            return "{prompt};"
+
+    def createCivitaiPromptString(self, checkpoints: str) -> str:
+        checkpoints = self.utils.getCheckpointListFromInput(checkpoints)
+        prompts = ""
+        prompts_with_info = ""
+        for i, checkpoint in enumerate(checkpoints):
+            prompts += self.get_civitAi_prompt_from_model(checkpoint)
+
+        prompts_with_info += self.utils.add_index_to_string(
+            prompts, is_checkpoint=False)
+
+        self.logger.log_info("loaded all prompts")
+        return prompts_with_info
+
 
 
 class Save():
+    """
+        saves and loads checkpoints and prompts in a JSON
+    """
 
     def __init__(self):
         self.file_name = "batchCheckpointPromptValues.json"
-        self.debugger = Debug(False)
+        self.logger = Logger(False)
 
     def read_file(self):
         try:
@@ -48,7 +179,7 @@ class Save():
         except FileNotFoundError:
             return {"None": ("", "")}
 
-    def store_values(self, name, checkpoints, prompts):
+    def store_values(self, name: str, checkpoints: str, prompts: str) -> None:
         data = {}
 
         # If the JSON file already exists, load the data into the dictionary
@@ -57,7 +188,8 @@ class Save():
 
         # Check if the name already exists in the data dictionary
         if name in data:
-            raise ValueError("Name already exists")
+            self.logger.log_info("Name already exists")
+            return
 
         # Add the data to the dictionary
         data[name] = (checkpoints, prompts)
@@ -66,7 +198,10 @@ class Save():
         with open(self.file_name, 'w') as f:
             json.dump(data, f)
 
-    def read_value(self, name):
+        self.logger.log_info("saved checkpoints and Prompts")
+        
+
+    def read_value(self, name: str) -> Tuple[str, str]:
         name = name[0]
         data = {}
 
@@ -76,17 +211,21 @@ class Save():
             raise RuntimeError("no save file found")
 
         x, y = tuple(data[name])
+        self.logger.log_info("loaded save")
 
         return x, y
 
-    def get_keys(self):
+    def get_keys(self) -> List[str]:
         data = self.read_file()
         return list(data.keys())
 
 
 class CheckpointLoopScript(scripts.Script):
+    """
+        The part called by AUTOMATIC1111
+    """
 
-    def __init__(self) -> None:
+    def __init__(self):
         current_basedir = scripts.basedir()
         save_path = os.path.join(current_basedir, "outputs")
         save_path_txt2img = os.path.join(save_path, "txt2img-grids")
@@ -97,73 +236,96 @@ class CheckpointLoopScript(scripts.Script):
             save_path_img2img, "Checkpoint-Prompt-Loop")
         self.is_img2_img = None
         self.margin_size = 0
-        self.debugger = Debug(False)
+        self.logger = Logger(False)
         self.font = None
         self.text_margin_left_and_right = 16
         self.n_iter = 1
         self.fill_values_symbol = "\U0001f4d2"  # 📒
         self.save_symbol = "\U0001F4BE"  # 💾
-        # self.reload_symbol = "\U0001F504" # 🔄
+        self.reload_symbol = "\U0001F504"  # 🔄
+        self.index_symbol = "\U0001F522"  # 🔢
         self.save = Save()
+        self.utils = Utils()
+        self.civitai_helper = CivitaihelperPrompts()
 
-    def title(self):
+    def title(self) -> str:
         return "Batch Checkpoint and Prompt"
 
-    def save_inputs(self, save_name, checkpoints, prompt_templates):
+    def save_inputs(self, save_name: str, checkpoints: str, prompt_templates: str) -> None:
         self.save.store_values(
             save_name.strip(), checkpoints.strip(), prompt_templates.strip())
-        self.debugger.log("Saving checkpoints")
 
-    def load_inputs(self, name):
+    def load_inputs(self, name: str) -> None:
         values = self.save.read_value(name.strip())
-        self.debugger.pLog(values)
 
-    def get_checkpoints(self):
-        return ',\n'.join(list(modules.sd_models.checkpoints_list))
+    def get_checkpoints(self) -> str:
+        checkpoint_list_no_index = list(modules.sd_models.checkpoints_list)
+        checkpoint_list_with_index = []
+        for i in range(len(checkpoint_list_no_index)):
+            checkpoint_list_with_index.append(
+                f"{checkpoint_list_no_index[i]} @index:{i}")
+        return ',\n'.join(checkpoint_list_with_index)
+
+    def getCheckpoints_and_prompt_with_index(self, checkpoint_list: str, prompts: str) -> Tuple[str, str]:
+        checkpoints = self.utils.add_index_to_string(checkpoint_list)
+        prompts = self.utils.add_index_to_string(prompts, is_checkpoint=False)
+        return checkpoints, prompts
 
     def ui(self, is_img2img):
-        self.checkpoints_input = gr.inputs.Textbox(
-            lines=5, label="Checkpoint Names", placeholder="Checkpoint names (separated with comma)")
-        self.fill_checkpoints_button = ToolButton(
-            value=self.fill_values_symbol, visible=True)
-        self.checkpoints_prompt = gr.inputs.Textbox(
-            lines=5, label="Prompts/prompt templates for Checkpoints", placeholder="prompts/prompt templates (separated with semicolon)")
-        self.margin_size = gr.Slider(
-            label="Grid margins (px)", minimum=0, maximum=10, value=0, step=1)
+        with gr.Tab("Parameters"):
+            with FormRow():
+                checkpoints_input = gr.inputs.Textbox(
+                    lines=5, label="Checkpoint Names", placeholder="Checkpoint names (separated with comma)")
+                fill_checkpoints_button = ToolButton(
+                    value=self.fill_values_symbol, visible=True)
+            with FormRow():
+                checkpoints_prompt = gr.inputs.Textbox(
+                    lines=5, label="Prompts/prompt templates for Checkpoints", placeholder="prompts/prompt templates (separated with semicolon)")
+                civitai_prompt_fill_button = ToolButton(
+                    value=self.fill_values_symbol, visible=True)
+                add_index_button = ToolButton(
+                    value=self.index_symbol, visible=True)
+            margin_size = gr.Slider(
+                label="Grid margins (px)", minimum=0, maximum=10, value=0, step=1)
 
-        # save and load inputs
-        self.save_name = gr.inputs.Textbox(
-            lines=1, label="save name", placeholder="save name")
-        self.save_button = ToolButton(value=self.save_symbol, visible=True)
-        # self.save_label = gr.outputs.Label("")
+            # save and load inputs
+            with FormRow():
+                save_name = gr.inputs.Textbox(
+                    lines=1, label="save name", placeholder="save name")
+                save_button = ToolButton(value=self.save_symbol, visible=True)
+            # self.save_label = gr.outputs.Label("")
 
-        # TODO add reload button for dropdown
-        keys = self.save.get_keys()
-        self.saved_inputs_dropdown = DropdownMulti(
-            choices=keys, label="Saved values")
-        self.load_button = ToolButton(
-            value=self.fill_values_symbol, visible=True)
-        # self.update_save_list_button = ToolButton(value=self.reload_symbol, visible=True)
+            with FormRow():
+                keys = self.save.get_keys()
+                saved_inputs_dropdown = DropdownMulti(
+                    choices=keys, label="Saved values")
+                load_button = ToolButton(
+                    value=self.fill_values_symbol, visible=True)
 
-        # Actions
+            # Actions
 
-        self.fill_checkpoints_button.click(
-            fn=self.get_checkpoints, outputs=[self.checkpoints_input])
-        self.save_button.click(fn=self.save_inputs, inputs=[
-                               self.save_name, self.checkpoints_input, self.checkpoints_prompt])
-        self.load_button.click(fn=self.save.read_value, inputs=[self.saved_inputs_dropdown], outputs=[
-                               self.checkpoints_input, self.checkpoints_prompt])
+            fill_checkpoints_button.click(
+                fn=self.get_checkpoints, outputs=[checkpoints_input])
+            save_button.click(fn=self.save_inputs, inputs=[
+                save_name, checkpoints_input, checkpoints_prompt])
+            load_button.click(fn=self.save.read_value, inputs=[saved_inputs_dropdown], outputs=[
+                checkpoints_input, checkpoints_prompt])
+            civitai_prompt_fill_button.click(fn=self.civitai_helper.createCivitaiPromptString, inputs=[
+                checkpoints_input], outputs=[checkpoints_prompt])
+            add_index_button.click(fn=self.getCheckpoints_and_prompt_with_index, inputs=[
+                                   checkpoints_input, checkpoints_prompt], outputs=[checkpoints_input, checkpoints_prompt])
+        with gr.Tab("help"):
+            gr.Markdown(self.utils.get_help_md())
+        return [checkpoints_input, checkpoints_prompt, margin_size]
 
-        return [self.checkpoints_input, self.checkpoints_prompt, self.margin_size]
-
-    def show(self, is_img2img):
+    def show(self, is_img2img) -> bool:
         self.is_img2_img = is_img2img
         return True
 
     # loads the new checkpoint and replaces the original prompt with the new one
     # and processes the image(s)
 
-    def process_images_with_checkpoint(self, p, prompt_and_batch_count, checkpoint):
+    def process_images_with_checkpoint(self, p: Union[modules.processing.StableDiffusionProcessingTxt2Img, modules.processing.StableDiffusionProcessingImg2Img], prompt_and_batch_count: Tuple[str, int], checkpoint: str) -> modules.processing.Processed:
         info = modules.sd_models.get_closet_checkpoint_match(checkpoint)
         modules.sd_models.reload_model_weights(shared.sd_model, info)
         p.prompt = prompt_and_batch_count[0]
@@ -171,16 +333,19 @@ class CheckpointLoopScript(scripts.Script):
             p.n_iter = self.n_iter
         else:
             p.n_iter = prompt_and_batch_count[1]
-        self.debugger.log(f"batch count {p.n_iter}")
+        self.logger.debug_log(f"batch count {p.n_iter}")
         processed = process_images(p)
         # unload the checkpoint to save vram
         modules.sd_models.unload_model_weights(shared.sd_model, info)
+
         return processed
 
-    def run(self, p, checkpoints_text, checkpoints_prompt, margin_size):
+    def run(self, p: Union[modules.processing.StableDiffusionProcessingTxt2Img, modules.processing.StableDiffusionProcessingImg2Img], checkpoints_text, checkpoints_prompt, margin_size) -> modules.processing.Processed:
 
         image_processed = []
         self.margin_size = margin_size
+
+        # all_prompts = []
 
         checkpoints, promts = self.get_checkpoints_and_prompt(
             checkpoints_text, checkpoints_prompt)
@@ -189,9 +354,11 @@ class CheckpointLoopScript(scripts.Script):
         self.n_iter = p.n_iter
 
         for i, checkpoint in enumerate(checkpoints):
+            self.logger.log_info(f"checkpoint: {i+1}/{len(checkpoints)}")
+
             prompt_and_batch_count = (promts[i][0].replace(
                 "{prompt}", base_prompt), promts[i][1])
-            self.debugger.log(
+            self.logger.debug_log(
                 f"Propmpt with replace: {prompt_and_batch_count[0]}")
             images_temp = self.process_images_with_checkpoint(
                 p, prompt_and_batch_count, checkpoint)
@@ -201,7 +368,7 @@ class CheckpointLoopScript(scripts.Script):
             # when the processing was interrupted,
             # the remaining checkpoints won't be loaded
             if len(images_temp.images) < p.n_iter * p.batch_size:
-                self.debugger.log("interupt")
+                self.logger.debug_log("interupt")
                 break
 
         img_grid = self.create_grid(image_processed, checkpoints)
@@ -215,11 +382,11 @@ class CheckpointLoopScript(scripts.Script):
                         image_processed[i].images[j])
         return image_processed[0]
 
-    def get_checkpoints_and_prompt(self, checkpoints_text, checkpoints_prompt):
+    def get_checkpoints_and_prompt(self, checkpoints_text: str, checkpoints_prompt: str) -> Tuple[str, str]:
 
-        checkpoints = checkpoints_text.strip().split(",")
-        checkpoints = [checkpoint.replace('\n', '').strip(
-        ) for checkpoint in checkpoints if checkpoints if not checkpoint.isspace() and checkpoint != '']
+        checkpoints = self.utils.getCheckpointListFromInput(checkpoints_text)
+        checkpoints_prompt = self.utils.remove_index_from_string(
+            checkpoints_prompt)
         promts = checkpoints_prompt.split(";")
         prompts = [prompt.replace('\n', '').strip(
         ) for prompt in promts if not prompt.isspace() and prompt != '']
@@ -242,6 +409,10 @@ class CheckpointLoopScript(scripts.Script):
                 raise RuntimeError(f"Unknown checkpoint: {checkpoint}")
 
         if len(prompts) != len(checkpoints):
+            self.logger.debug_log(
+                f"len prompt: {len(prompts)}, len checkpoints{len(checkpoints)}")
+            self.logger.pLog(prompts)
+            self.logger.pLog(checkpoints)
             raise RuntimeError(
                 f"amount of prompts don't match with amount of checkpoints")
 
@@ -250,11 +421,13 @@ class CheckpointLoopScript(scripts.Script):
 
         return checkpoints, prompts
 
-    def create_grid(self, image_processed, checkpoints):
+    def create_grid(self, image_processed: list, checkpoints: str):
+        self.logger.log_info("creating the grid. This can take a while, depending on the amount of images")
 
-        def getFileName(save_path):
+
+        def getFileName(save_path: str) -> str:
             if not os.path.exists(save_path):
-                os.mkdirs(save_path)
+                os.makedirs(save_path)
 
             files = os.listdir(save_path)
             pattern = r"img_(\d{4})"
@@ -312,11 +485,9 @@ class CheckpointLoopScript(scripts.Script):
 
         return result_img
 
-    def add_legend(self, img, checkpoint_name):
+    def add_legend(self, img, checkpoint_name: str):
 
-        self.debugger.log("Adding legend is called")
-
-        def find_available_font():
+        def find_available_font() -> str:
 
             if self.font is None:
 
@@ -330,20 +501,20 @@ class CheckpointLoopScript(scripts.Script):
                     for font_file in font_list:
                         self.font = os.path.abspath(font_file)
                         if os.path.isfile(self.font):
-                            self.debugger.log("font list font")
+                            self.logger.debug_log("font list font")
                             return self.font
 
-                    self.debugger.log("fdefault font")
+                    self.logger.debug_log("fdefault font")
                     return ImageFont.load_default()
-                self.debugger.log("DejaVu font")
+                self.logger.debug_log("DejaVu font")
 
             return self.font
 
-        def strip_checkpoint_name(checkpoint_name):
+        def strip_checkpoint_name(checkpoint_name: str) -> str:
             checkpoint_name = os.path.basename(checkpoint_name)
-            return re.sub(r'\[.*?\]', '', checkpoint_name).strip()
+            return self.utils.get_clean_checkpoint_path(checkpoint_name)
 
-        def calculate_font(draw, text, width):
+        def calculate_font(draw, text: str, width: int) -> Tuple[int, int]:
             width -= self.text_margin_left_and_right
             default_font_path = find_available_font()
             font_size = 1
@@ -352,7 +523,7 @@ class CheckpointLoopScript(scripts.Script):
             text_width, text_height = draw.textsize(text, font)
 
             while text_width < width:
-                self.debugger.log(
+                self.logger.debug_log(
                     f"text width: {text_width}, img width: {width}")
                 font_size += 1
                 font = ImageFont.truetype(
