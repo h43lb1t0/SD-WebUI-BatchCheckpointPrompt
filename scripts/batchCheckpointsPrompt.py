@@ -3,16 +3,19 @@ import json
 import os
 import re
 import subprocess
+import sys
 from pprint import pprint
-import requests
+from time import sleep
 from typing import List, Tuple, Union
 
 import gradio as gr
 import modules
 import modules.scripts as scripts
 import modules.shared as shared
+import requests
 from modules.processing import process_images
-from modules.ui_components import DropdownMulti, ToolButton, FormRow, FormColumn
+from modules.ui_components import (DropdownMulti, FormColumn, FormRow,
+                                   ToolButton)
 from PIL import Image, ImageDraw, ImageFont
 
 
@@ -41,6 +44,7 @@ class Logger():
     def log_info(self, msg: str) -> None:
         print(f"INFO: Batch-Checkpoint-Prompt: {msg}")
 
+
 try:
     import matplotlib.font_manager as fm
 except:
@@ -52,9 +56,13 @@ class Utils():
     """
         methods that are needed in different classes
     """
+
     def __init__(self):
         self.logger = Logger(False)
-        self.held_md_file_name = "HelpBatchCheckpointsPrompt"
+        script_path = os.path.dirname(
+            os.path.dirname(os.path.abspath(__file__)))
+        self.held_md_file_name = os.path.join(
+            script_path, "HelpBatchCheckpointsPrompt.md")
         self.held_md_url = f"https://raw.githubusercontent.com/h43lb1t0/BatchCheckpointPrompt/main/{self.held_md_file_name}.md"
 
     def remove_index_from_string(self, input: str) -> str:
@@ -66,6 +74,7 @@ class Utils():
     def getCheckpointListFromInput(self, checkpoints_text: str) -> List[str]:
         self.logger.debug_log(f"checkpoints: {checkpoints_text}")
         checkpoints_text = self.remove_index_from_string(checkpoints_text)
+        checkpoints_text = self.get_clean_checkpoint_path(checkpoints_text)
         checkpoints = checkpoints_text.split(",")
         checkpoints = [checkpoint.replace('\n', '').strip(
         ) for checkpoint in checkpoints if checkpoints if not checkpoint.isspace() and checkpoint != '']
@@ -77,6 +86,7 @@ class Utils():
             with open(self.held_md_file_name) as f:
                 md = f.read()
         else:
+            self.logger.debug_log("downloading help md")
             result = requests.get(self.held_md_url)
             if result.status_code == 200:
                 with open(self.held_md_file_name, "wb") as file:
@@ -100,10 +110,9 @@ class Utils():
             return text_string
 
 
-
 class CivitaihelperPrompts():
     """
-        some code copyed from https://github.com/butaixianran/Stable-Diffusion-Webui-Civitai-Helper (scripts/ch_lib/model.py)
+        some code snipets copyed from https://github.com/butaixianran/Stable-Diffusion-Webui-Civitai-Helper (scripts/ch_lib/model.py)
         this whole thing will not do the desired thing when the above mentioned exitension is not installed and used
     """
 
@@ -161,7 +170,6 @@ class CivitaihelperPrompts():
         return prompts_with_info
 
 
-
 class Save():
     """
         saves and loads checkpoints and prompts in a JSON
@@ -199,7 +207,6 @@ class Save():
             json.dump(data, f)
 
         self.logger.log_info("saved checkpoints and Prompts")
-        
 
     def read_value(self, name: str) -> Tuple[str, str]:
         name = name[0]
@@ -325,19 +332,21 @@ class CheckpointLoopScript(scripts.Script):
     # loads the new checkpoint and replaces the original prompt with the new one
     # and processes the image(s)
 
-    def process_images_with_checkpoint(self, p: Union[modules.processing.StableDiffusionProcessingTxt2Img, modules.processing.StableDiffusionProcessingImg2Img], prompt_and_batch_count: Tuple[str, int], checkpoint: str) -> modules.processing.Processed:
+    def process_images_with_checkpoint(self, p: Union[modules.processing.StableDiffusionProcessingTxt2Img, modules.processing.StableDiffusionProcessingImg2Img], generation_data: Tuple[str, str, int], checkpoint: str) -> modules.processing.Processed:
+        info = None
         info = modules.sd_models.get_closet_checkpoint_match(checkpoint)
         modules.sd_models.reload_model_weights(shared.sd_model, info)
-        p.prompt = prompt_and_batch_count[0]
-        if prompt_and_batch_count[1] == -1:
+        p.override_settings['sd_model_checkpoint'] = info.name
+        p.prompt = generation_data[0]
+        p.negative_prompt += generation_data[1]
+        if generation_data[2] == -1:
             p.n_iter = self.n_iter
         else:
-            p.n_iter = prompt_and_batch_count[1]
+            p.n_iter = generation_data[2]
         self.logger.debug_log(f"batch count {p.n_iter}")
         processed = process_images(p)
         # unload the checkpoint to save vram
         modules.sd_models.unload_model_weights(shared.sd_model, info)
-
         return processed
 
     def run(self, p: Union[modules.processing.StableDiffusionProcessingTxt2Img, modules.processing.StableDiffusionProcessingImg2Img], checkpoints_text, checkpoints_prompt, margin_size) -> modules.processing.Processed:
@@ -351,24 +360,25 @@ class CheckpointLoopScript(scripts.Script):
             checkpoints_text, checkpoints_prompt)
 
         base_prompt = p.prompt
+        neg_prompt = p.negative_prompt
         self.n_iter = p.n_iter
 
         for i, checkpoint in enumerate(checkpoints):
+            p.negative_prompt = neg_prompt
+
             self.logger.log_info(f"checkpoint: {i+1}/{len(checkpoints)}")
 
-            prompt_and_batch_count = (promts[i][0].replace(
-                "{prompt}", base_prompt), promts[i][1])
+            generation_data = (promts[i][0].replace(
+                "{prompt}", base_prompt), promts[i][1], promts[i][2])
             self.logger.debug_log(
-                f"Propmpt with replace: {prompt_and_batch_count[0]}")
+                f"Propmpt with replace: {generation_data[0]}")
+
             images_temp = self.process_images_with_checkpoint(
-                p, prompt_and_batch_count, checkpoint)
+                p, generation_data, checkpoint)
 
             image_processed.append(images_temp)
 
-            # when the processing was interrupted,
-            # the remaining checkpoints won't be loaded
-            if len(images_temp.images) < p.n_iter * p.batch_size:
-                self.logger.debug_log("interupt")
+            if shared.state.interrupted:
                 break
 
         img_grid = self.create_grid(image_processed, checkpoints)
@@ -382,25 +392,44 @@ class CheckpointLoopScript(scripts.Script):
                         image_processed[i].images[j])
         return image_processed[0]
 
-    def get_checkpoints_and_prompt(self, checkpoints_text: str, checkpoints_prompt: str) -> Tuple[str, str]:
+    def get_checkpoints_and_prompt(self, checkpoints_text: str, checkpoints_prompt: str) -> Tuple[List[str], Tuple[str, str, int]]:
 
         checkpoints = self.utils.getCheckpointListFromInput(checkpoints_text)
         checkpoints_prompt = self.utils.remove_index_from_string(
             checkpoints_prompt)
         promts = checkpoints_prompt.split(";")
+        # postive_prompts, negative_prompts = None
         prompts = [prompt.replace('\n', '').strip(
         ) for prompt in promts if not prompt.isspace() and prompt != '']
 
-        # extracts the batch count from the prompt if specified
-        for i, prompt in enumerate(prompts):
-            number_match = re.search(r"\{\{-?[0-9]+\}\}", prompt)
-            if number_match:
-                # Extract the number from the match object
-                number = int(number_match.group(0)[2:-2])
-                number = -1 if number < 1 else number
-                prompts[i] = (re.sub(r"\{\{-?[0-9]+\}\}", '', prompt), number)
-            else:
-                prompts[i] = (prompt, -1)
+        def get_batch_couint_from_prompt() -> None:
+            # extracts the batch count from the prompt if specified
+            for i, prompt in enumerate(prompts):
+                number_match = re.search(r"\{\{-?[0-9]+\}\}", prompt)
+                if number_match:
+                    # Extract the number from the match object
+                    number = int(number_match.group(0)[2:-2])
+                    number = -1 if number < 1 else number
+                    prompts[i] = (
+                        re.sub(r"\{\{-?[0-9]+\}\}", '', prompt), "", number)
+                else:
+                    prompts[i] = (prompt, "", -1)
+
+        def split_postive_and_negative_postive_prompt() -> None:
+            pattern = r'{{neg:(.*?)}}'
+            for i, prompt in enumerate(prompts):
+                # Split the input string into parts
+                parts = re.split(pattern, prompts[i][0])
+                extracted_text = ""
+                # If pattern is found, save it to a variable and remove it from the list
+                if len(parts) > 2:
+                    neg_prompt = parts[1]  # save the extracted text
+                    parts.pop(1)  # remove matched pattern
+                    postive_prompt, negative_prompt, batch_count = prompts[i]
+                    prompts[i] = ("".join(parts), neg_prompt, batch_count)
+
+        get_batch_couint_from_prompt()
+        split_postive_and_negative_postive_prompt()
 
         for checkpoint in checkpoints:
 
@@ -422,8 +451,8 @@ class CheckpointLoopScript(scripts.Script):
         return checkpoints, prompts
 
     def create_grid(self, image_processed: list, checkpoints: str):
-        self.logger.log_info("creating the grid. This can take a while, depending on the amount of images")
-
+        self.logger.log_info(
+            "creating the grid. This can take a while, depending on the amount of images")
 
         def getFileName(save_path: str) -> str:
             if not os.path.exists(save_path):

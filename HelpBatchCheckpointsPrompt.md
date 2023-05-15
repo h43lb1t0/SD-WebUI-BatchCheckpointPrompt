@@ -22,6 +22,7 @@ If you don't have this installed it will simply load `{prompt};` for each checkp
 - `@index:number` Is automatically added after the checkpoint name when you load the checkpoint by 📒 button.
 - `{prompt}` insert this at the point in the checkpoint specific prompt where you want the positive prompt to be inserted.
 - `{{number}}` Add this to the end of the prompt to set a different batch count for this checkpoint
+- `{{neg: negativ prompt text here}}`Add this to the end of the prompt, the text will be simply added to the back of the negative prompt
 <hr>
 
 🔢 adds the `@index:number` to the end of the Checkpoints and Prompts. If already there updates them.
