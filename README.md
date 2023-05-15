@@ -8,8 +8,7 @@ Creates images with with different checkpoints and prompts. Either different pro
 can now be installed like an extension: <br>
 extensions > install from URL
  <br><br>
-copy the batchCheckpointsPrompt.py into ```/stable-diffusion-webui/scripts```
-
+Copying the script to the scripts folder is depracticated
 <hr>
 
 ### Usage
