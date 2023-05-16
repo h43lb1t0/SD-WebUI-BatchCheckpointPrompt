@@ -354,7 +354,16 @@ class CheckpointLoopScript(scripts.Script):
         image_processed = []
         self.margin_size = margin_size
 
-        # all_prompts = []
+        def get_total_batch_count(promts) -> int:
+            summe = 0
+            for promt in promts:
+                value = promt[2]
+                if value == -1:
+                    summe += self.n_iter
+                else:
+                    summe += value
+            return summe
+
 
         checkpoints, promts = self.get_checkpoints_and_prompt(
             checkpoints_text, checkpoints_prompt)
@@ -362,6 +371,13 @@ class CheckpointLoopScript(scripts.Script):
         base_prompt = p.prompt
         neg_prompt = p.negative_prompt
         self.n_iter = p.n_iter
+
+        total_batch_count = get_total_batch_count(promts)
+        total_steps = p.steps * total_batch_count
+        self.logger.debug_log(f"total steps: {total_steps}")
+
+        shared.state.job_count = total_batch_count
+        shared.total_tqdm.updateTotal(total_steps)
 
         for i, checkpoint in enumerate(checkpoints):
             p.negative_prompt = neg_prompt
@@ -392,7 +408,7 @@ class CheckpointLoopScript(scripts.Script):
                         image_processed[i].images[j])
         return image_processed[0]
 
-    def get_checkpoints_and_prompt(self, checkpoints_text: str, checkpoints_prompt: str) -> Tuple[List[str], Tuple[str, str, int]]:
+    def get_checkpoints_and_prompt(self, checkpoints_text: str, checkpoints_prompt: str) -> Tuple[List[str], List[Tuple[str, str, int]]]:
 
         checkpoints = self.utils.getCheckpointListFromInput(checkpoints_text)
         checkpoints_prompt = self.utils.remove_index_from_string(
