@@ -65,6 +65,6 @@ If you want to contribute something to the script just open a pull request and I
 
 ### Roadmap
 
-- [ ] add negative prompt
+- [x] add negative prompt
 - [ ] add basemodel version next to the Checkpointname
 - [ ] reload button for save and load
