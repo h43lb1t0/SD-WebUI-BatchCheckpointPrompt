@@ -1,3 +1,4 @@
+import copy
 import inspect
 import json
 import os
@@ -13,7 +14,8 @@ import modules
 import modules.scripts as scripts
 import modules.shared as shared
 import requests
-from modules.processing import process_images
+from modules import processing
+from modules.processing import process_images, Processed
 from modules.ui_components import (DropdownMulti, FormColumn, FormRow,
                                    ToolButton)
 from PIL import Image, ImageDraw, ImageFont
@@ -25,24 +27,51 @@ class Logger():
         debugging can be enabled/disabled for the whole instance
     """
 
-    def __init__(self, debug=False):
-        self.debug = debug
+    def __init__(self):
+        self.debug = False
+
+    def log_caller(self):
+        caller_frame = inspect.currentframe().f_back.f_back  # get the grandparent frame
+        caller_function_name = caller_frame.f_code.co_name
+        caller_self = caller_frame.f_locals.get('self', None)
+        if caller_self is not None:
+            caller_class_name = caller_self.__class__.__name__
+            print(f"\tat: {caller_class_name}.{caller_function_name}\n")
+        else:
+            print(f"\tat: {caller_function_name}\n")
+
 
     def debug_log(self, msg: str) -> None:
         if self.debug:
             print(f"\n\tDEBUG: {msg}")
-            caller_frame = inspect.currentframe().f_back
-            caller_function_name = caller_frame.f_code.co_name
-            caller_class_name = caller_frame.f_locals.get(
-                'self', None).__class__.__name__
-            print(f"\tat: {caller_class_name}.{caller_function_name}\n")
+            self.log_caller()
 
-    def pLog(self, msg: any) -> None:
+    def pretty_debug_log(self, msg: any) -> None:
         if self.debug:
+            print("\n\n\n")
             pprint(msg)
+            self.log_caller()
+
 
     def log_info(self, msg: str) -> None:
         print(f"INFO: Batch-Checkpoint-Prompt: {msg}")
+
+    def debug_print_attributes(self, obj: any) -> None:
+        if self.debug:
+            attributes = dir(obj)
+            for attribute in attributes:
+                if not attribute.startswith("__"):
+                    value = getattr(obj, attribute)
+                    if not callable(value):  # Exclude methods
+                        try:
+                            print(f"{attribute}:")
+                            pprint(value)
+                        except:
+                            print(f"{attribute}: {value}\n")
+            print(f"\n{type(obj)}\n")
+            self.log_caller()
+        
+
 
 
 try:
@@ -58,7 +87,8 @@ class Utils():
     """
 
     def __init__(self):
-        self.logger = Logger(False)
+        self.logger = Logger()
+        self.logger.debug = False
         script_path = os.path.dirname(
             os.path.dirname(os.path.abspath(__file__)))
         self.held_md_file_name = os.path.join(
@@ -125,7 +155,8 @@ class CivitaihelperPrompts():
     def __init__(self):
         self.model_path = self.get_custom_model_folder()
         self.utils = Utils()
-        self.logger = Logger(False)
+        self.logger = Logger()
+        self.logger.debug = False
 
     def get_civitAi_prompt_from_model(self, path: str) -> str:
         path = path.replace(".ckpt", ".civitai.info").replace(
@@ -177,7 +208,8 @@ class Save():
 
     def __init__(self):
         self.file_name = "batchCheckpointPromptValues.json"
-        self.logger = Logger(False)
+        self.logger = Logger()
+        self.logger.debug = False
 
     def read_file(self):
         try:
@@ -243,7 +275,8 @@ class CheckpointLoopScript(scripts.Script):
             save_path_img2img, "Checkpoint-Prompt-Loop")
         self.is_img2_img = None
         self.margin_size = 0
-        self.logger = Logger(False)
+        self.logger = Logger()
+        self.logger.debug = False
         self.font = None
         self.text_margin_left_and_right = 16
         self.n_iter = 1
@@ -332,22 +365,48 @@ class CheckpointLoopScript(scripts.Script):
     # loads the new checkpoint and replaces the original prompt with the new one
     # and processes the image(s)
 
-    def process_images_with_checkpoint(self, p: Union[modules.processing.StableDiffusionProcessingTxt2Img, modules.processing.StableDiffusionProcessingImg2Img], generation_data: Tuple[str, str, int], checkpoint: str) -> modules.processing.Processed:
+    def get_n_iter(self, generation_data: Tuple[str, str, int]) -> int:
+        if generation_data[2] == -1:
+            return self.n_iter
+        else:
+            return generation_data[2]
+
+    def generate_images_with_SD(self, p: Union[modules.processing.StableDiffusionProcessingTxt2Img, modules.processing.StableDiffusionProcessingImg2Img], generation_data: Tuple[str, str, int], checkpoint: str) -> modules.processing.Processed:
         info = None
         info = modules.sd_models.get_closet_checkpoint_match(checkpoint)
         modules.sd_models.reload_model_weights(shared.sd_model, info)
         p.override_settings['sd_model_checkpoint'] = info.name
         p.prompt = generation_data[0]
         p.negative_prompt += generation_data[1]
-        if generation_data[2] == -1:
-            p.n_iter = self.n_iter
-        else:
-            p.n_iter = generation_data[2]
+        p.n_iter = self.get_n_iter(generation_data)
+        p.hr_prompt = generation_data[0]
+        p.hr_negative_prompt = p.negative_prompt
         self.logger.debug_log(f"batch count {p.n_iter}")
         processed = process_images(p)
+        # TODO maybe try to add again later
         # unload the checkpoint to save vram
-        modules.sd_models.unload_model_weights(shared.sd_model, info)
+        #modules.sd_models.unload_model_weights(shared.sd_model, info)
         return processed
+    
+
+    def generate_infotexts(self, process_images_object: modules.processing.Processed, all_infotexts: List[str], n_iter: int) -> List[str]:
+
+        def do_stuff(i=0) -> str:
+            return processing.create_infotext(pc, pc.all_prompts, pc.all_seeds, pc.all_subseeds, position_in_batch=i)
+
+        self.logger.pretty_debug_log(all_infotexts)
+
+        pc = process_images_object
+
+        if n_iter == 1:
+            all_infotexts.append(do_stuff())
+        else:
+            all_infotexts.append(self.base_prompt)
+            for i in range(n_iter * pc.batch_size):
+                all_infotexts.append(do_stuff(i))
+
+        return all_infotexts
+
 
     def run(self, p: Union[modules.processing.StableDiffusionProcessingTxt2Img, modules.processing.StableDiffusionProcessingImg2Img], checkpoints_text, checkpoints_prompt, margin_size) -> modules.processing.Processed:
 
@@ -368,7 +427,7 @@ class CheckpointLoopScript(scripts.Script):
         checkpoints, promts = self.get_checkpoints_and_prompt(
             checkpoints_text, checkpoints_prompt)
 
-        base_prompt = p.prompt
+        self.base_prompt = p.prompt
         neg_prompt = p.negative_prompt
         self.n_iter = p.n_iter
 
@@ -379,20 +438,34 @@ class CheckpointLoopScript(scripts.Script):
         shared.state.job_count = total_batch_count
         shared.total_tqdm.updateTotal(total_steps)
 
+        all_infotexts = [self.base_prompt]
+
+        p.extra_generation_params['Script'] = self.title()
+
+
         for i, checkpoint in enumerate(checkpoints):
             p.negative_prompt = neg_prompt
+            
 
             self.logger.log_info(f"checkpoint: {i+1}/{len(checkpoints)}")
 
-            generation_data = (promts[i][0].replace(
-                "{prompt}", base_prompt), promts[i][1], promts[i][2])
+            prompt = promts[i][0].replace(
+                "{prompt}", self.base_prompt)
+
+            generation_data = (prompt, promts[i][1], promts[i][2])
             self.logger.debug_log(
                 f"Propmpt with replace: {generation_data[0]}")
+            
+                        
 
-            images_temp = self.process_images_with_checkpoint(
+            processed_sd_object = self.generate_images_with_SD(
                 p, generation_data, checkpoint)
 
-            image_processed.append(images_temp)
+            image_processed.append(processed_sd_object)
+
+            
+            all_infotexts = self.generate_infotexts(processed_sd_object, all_infotexts, self.get_n_iter(generation_data))
+
 
             if shared.state.interrupted:
                 break
@@ -406,6 +479,10 @@ class CheckpointLoopScript(scripts.Script):
                 for j in range(len(image_processed[i].images)):
                     image_processed[0].images.append(
                         image_processed[i].images[j])
+                    
+            image_processed[0].infotexts = all_infotexts        
+
+
         return image_processed[0]
 
     def get_checkpoints_and_prompt(self, checkpoints_text: str, checkpoints_prompt: str) -> Tuple[List[str], List[Tuple[str, str, int]]]:
@@ -456,8 +533,8 @@ class CheckpointLoopScript(scripts.Script):
         if len(prompts) != len(checkpoints):
             self.logger.debug_log(
                 f"len prompt: {len(prompts)}, len checkpoints{len(checkpoints)}")
-            self.logger.pLog(prompts)
-            self.logger.pLog(checkpoints)
+            self.logger.pretty_debug_log(prompts)
+            self.logger.pretty_debug_log(checkpoints)
             raise RuntimeError(
                 f"amount of prompts don't match with amount of checkpoints")
 
