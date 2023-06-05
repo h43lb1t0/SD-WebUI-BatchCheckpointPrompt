@@ -42,5 +42,5 @@ To reload a saved state, select it from the drop-down menu and press the 📒 bu
 <hr>
 
 ## more
-For more information visit the Github page of this repository.
+For more information and known bugs visit the Github page of this Script:
 https://github.com/h43lb1t0/BatchCheckpointPrompt
