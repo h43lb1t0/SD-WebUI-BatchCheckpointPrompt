@@ -17,6 +17,8 @@ either enter the names of the checkpoints yourself, keep in mind that if you hav
 here you enter the prompts for the checkpoints, each in the same order as the checkpoints are.
 If you have installed the [Civitai Helper2](https://github.com/butaixianran/Stable-Diffusion-Webui-Civitai-Helper) extension, this button automatically launches the prompts from the checkpoint thumbnails into the textbox.
 If you don't have this installed it will simply load `{prompt};` for each checkpoint. Just like if there is no prompt for the preview image.
+<br>
+hires fix always uses the same prompts as for the first pass of the checkpoint, even if extra hires fix prompts were specified.
 ### syntax:
 - `promptA; promptB` Separate the prompts with a semicolon.
 - `@index:number` Is automatically added after the checkpoint name when you load the checkpoint by 📒 button.
