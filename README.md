@@ -32,6 +32,8 @@ The saved values appear only after a restart of the UI in the Dropdown menu, tha
 In the Positive prompt write your prompt without any trigger words. E.g. "one young woman, long blonde hair, wearing a black skirt and a white blouse,standing in nature".
 In the script add the checkpoint names in the first input box. Separate the names with a comma.
 In the second textbox you write the prompts for each checkpoint in the same order as the checkpoints. at the place where your base prompt should be inserted you write ``{prompt}``. The prompts are separated with a semicolon.
+<br>
+hires fix always uses the same prompts as for the first pass of the checkpoint, even if extra hires fix prompts were specified
 <br><br>
 An example of RealisticVision and deliberate:
 ![base prompt](https://raw.githubusercontent.com/h43lb1t0/CheckpointPromptLoop/main/img/BasePrompt.png)
@@ -52,7 +54,8 @@ If no value is specified, the batch count selected in the UI will be used.
 
 ### bugs
 
-send to img2img does not work correctly, because only the prompt of the first image is sent. The correct data is stored in the image.
+although the correct info texts are displayed, send to img2img and send to inpaint do not pass the correct data, but only the base prompt.
+
 <br>
 works with [Dynamic Prompts](https://github.com/adieyal/sd-dynamic-prompts), but jinja2 templates can cause unexpected behavior.
 
