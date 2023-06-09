@@ -1,77 +1,24 @@
-import copy
-import inspect
-import json
 import os
 import re
 import subprocess
 import sys
-from pprint import pprint
-from time import sleep
 from typing import List, Tuple, Union
+
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "scripts"))
+from scripts.Utils import Utils
+from scripts.Logger import Logger
+from scripts.CivitaihelperPrompts import CivitaihelperPrompts
+from scripts.Save import Save
 
 import gradio as gr
 import modules
 import modules.scripts as scripts
 import modules.shared as shared
-import requests
 from modules import processing
 from modules.processing import process_images, Processed
-from modules.ui_components import (DropdownMulti, FormColumn, FormRow,
-                                   ToolButton)
+from modules.ui_components import (DropdownMulti, FormColumn, FormRow,ToolButton)
 from PIL import Image, ImageDraw, ImageFont
-
-
-class Logger():
-    """
-        Log class with different styled logs.
-        debugging can be enabled/disabled for the whole instance
-    """
-
-    def __init__(self):
-        self.debug = False
-
-    def log_caller(self):
-        caller_frame = inspect.currentframe().f_back.f_back  # get the grandparent frame
-        caller_function_name = caller_frame.f_code.co_name
-        caller_self = caller_frame.f_locals.get('self', None)
-        if caller_self is not None:
-            caller_class_name = caller_self.__class__.__name__
-            print(f"\tat: {caller_class_name}.{caller_function_name}\n")
-        else:
-            print(f"\tat: {caller_function_name}\n")
-
-
-    def debug_log(self, msg: str) -> None:
-        if self.debug:
-            print(f"\n\tDEBUG: {msg}")
-            self.log_caller()
-
-    def pretty_debug_log(self, msg: any) -> None:
-        if self.debug:
-            print("\n\n\n")
-            pprint(msg)
-            self.log_caller()
-
-
-    def log_info(self, msg: str) -> None:
-        print(f"INFO: Batch-Checkpoint-Prompt: {msg}")
-
-    def debug_print_attributes(self, obj: any) -> None:
-        if self.debug:
-            attributes = dir(obj)
-            for attribute in attributes:
-                if not attribute.startswith("__"):
-                    value = getattr(obj, attribute)
-                    if not callable(value):  # Exclude methods
-                        try:
-                            print(f"{attribute}:")
-                            pprint(value)
-                        except:
-                            print(f"{attribute}: {value}\n")
-            print(f"\n{type(obj)}\n")
-            self.log_caller()
-        
-
 
 
 try:
@@ -80,186 +27,8 @@ except:
     subprocess.check_call(["pip", "install", "matplotlib"])
     import matplotlib.font_manager as fm
 
-
-class Utils():
-    """
-        methods that are needed in different classes
-    """
-
-    def __init__(self):
-        self.logger = Logger()
-        self.logger.debug = False
-        script_path = os.path.dirname(
-            os.path.dirname(os.path.abspath(__file__)))
-        self.held_md_file_name = os.path.join(
-            script_path, "HelpBatchCheckpointsPrompt.md")
-        self.held_md_url = f"https://raw.githubusercontent.com/h43lb1t0/BatchCheckpointPrompt/main/{self.held_md_file_name}.md"
-
-    def remove_index_from_string(self, input: str) -> str:
-        return re.sub(r"@index:\d+", "", input).strip()
-
-    def get_clean_checkpoint_path(self, checkpoint: str) -> str:
-        return re.sub(r'\[.*?\]', '', checkpoint).strip()
-
-    def getCheckpointListFromInput(self, checkpoints_text: str) -> List[str]:
-        self.logger.debug_log(f"checkpoints: {checkpoints_text}")
-        checkpoints_text = self.remove_index_from_string(checkpoints_text)
-        checkpoints_text = self.get_clean_checkpoint_path(checkpoints_text)
-        checkpoints = checkpoints_text.split(",")
-        checkpoints = [checkpoint.replace('\n', '').strip(
-        ) for checkpoint in checkpoints if checkpoints if not checkpoint.isspace() and checkpoint != '']
-        return checkpoints
-
-    def get_help_md(self) -> None:
-        md = "could not get help file. Check Github for more information"
-        if os.path.isfile(self.held_md_file_name):
-            with open(self.held_md_file_name) as f:
-                md = f.read()
-        else:
-            self.logger.debug_log("downloading help md")
-            result = requests.get(self.held_md_url)
-            if result.status_code == 200:
-                with open(self.held_md_file_name, "wb") as file:
-                    file.write(result.content)
-                return self.get_help_md()
-        return md
-
-    def add_index_to_string(self, text: str, is_checkpoint: bool = True) -> str:
-        text_string = ""
-        if is_checkpoint:
-            text = self.getCheckpointListFromInput(text)
-            for i, checkpoint in enumerate(text):
-                text_string += f"{self.remove_index_from_string(checkpoint)} @index:{i},\n"
-            return text_string
-        else:
-            text = text.split(";")
-            text = [text.replace('\n', '').strip(
-            ) for text in text if not text.isspace() and text != '']
-            for i, text in enumerate(text):
-                text_string += f"{self.remove_index_from_string(text)} @index:{i};\n\n"
-            return text_string
-
-
-class CivitaihelperPrompts():
-    """
-        some code snipets copyed from https://github.com/butaixianran/Stable-Diffusion-Webui-Civitai-Helper (scripts/ch_lib/model.py)
-        this whole thing will not do the desired thing when the above mentioned exitension is not installed and used
-    """
-
-    def get_custom_model_folder(self) -> str:
-        if shared.cmd_opts.ckpt_dir and os.path.isdir(shared.cmd_opts.ckpt_dir):
-            return shared.cmd_opts.ckpt_dir
-        else:
-            return os.path.join(scripts.basedir(), "models", "Stable-diffusion")
-
-    def __init__(self):
-        self.model_path = self.get_custom_model_folder()
-        self.utils = Utils()
-        self.logger = Logger()
-        self.logger.debug = False
-
-    def get_civitAi_prompt_from_model(self, path: str) -> str:
-        path = path.replace(".ckpt", ".civitai.info").replace(
-            ".safetensors", ".civitai.info")
-        path = self.utils.get_clean_checkpoint_path(path)
-        path = os.path.join(self.model_path, path)
-        self.logger.debug_log(f"{path} -> is file {os.path.isfile(path)}")
-        fullPath = os.path.realpath(path)
-        if not os.path.exists(os.path.realpath(path)):
-            return "{prompt};"
-        model_info = None
-        with open(os.path.realpath(path), 'r') as f:
-            try:
-                model_info = json.load(f)
-            except Exception as e:
-                return "{prompt};"
-        try:
-            self.logger.debug_log(f"len: {len(model_info['images'])}")
-            for i in range(0, len(model_info['images'])):
-                try:
-                    info = model_info['images'][i]['meta']['prompt']
-                    self.logger.debug_log(f"Prompt: {info}")
-                    if info:
-                        return f"{info};"
-                except:
-                    pass
-            return "{prompt};"
-        except:
-            return "{prompt};"
-
-    def createCivitaiPromptString(self, checkpoints: str) -> str:
-        checkpoints = self.utils.getCheckpointListFromInput(checkpoints)
-        prompts = ""
-        prompts_with_info = ""
-        for i, checkpoint in enumerate(checkpoints):
-            prompts += self.get_civitAi_prompt_from_model(checkpoint)
-
-        prompts_with_info += self.utils.add_index_to_string(
-            prompts, is_checkpoint=False)
-
-        self.logger.log_info("loaded all prompts")
-        return prompts_with_info
-
-
-class Save():
-    """
-        saves and loads checkpoints and prompts in a JSON
-    """
-
-    def __init__(self):
-        self.file_name = "batchCheckpointPromptValues.json"
-        self.logger = Logger()
-        self.logger.debug = False
-
-    def read_file(self):
-        try:
-            with open(self.file_name, 'r') as f:
-                data = json.load(f)
-            return data
-        except FileNotFoundError:
-            return {"None": ("", "")}
-
-    def store_values(self, name: str, checkpoints: str, prompts: str) -> None:
-        data = {}
-
-        # If the JSON file already exists, load the data into the dictionary
-        if os.path.exists(self.file_name):
-            data = self.read_file()
-
-        # Check if the name already exists in the data dictionary
-        if name in data:
-            self.logger.log_info("Name already exists")
-            return
-
-        # Add the data to the dictionary
-        data[name] = (checkpoints, prompts)
-
-        # Append the new data to the JSON file
-        with open(self.file_name, 'w') as f:
-            json.dump(data, f)
-
-        self.logger.log_info("saved checkpoints and Prompts")
-
-    def read_value(self, name: str) -> Tuple[str, str]:
-        name = name[0]
-        data = {}
-
-        if os.path.exists(self.file_name):
-            data = self.read_file()
-        else:
-            raise RuntimeError("no save file found")
-
-        x, y = tuple(data[name])
-        self.logger.log_info("loaded save")
-
-        return x, y
-
-    def get_keys(self) -> List[str]:
-        data = self.read_file()
-        return list(data.keys())
-
-
-class CheckpointLoopScript(scripts.Script):
+class BatchCheckointsAndPrompts(scripts.Script):
+    # TODO: change hover text of the icon buttons
     """
         The part called by AUTOMATIC1111
     """
@@ -289,7 +58,7 @@ class CheckpointLoopScript(scripts.Script):
         self.civitai_helper = CivitaihelperPrompts()
 
     def title(self) -> str:
-        return "Batch Checkpoint and Prompt"
+        return "Batch Checkpoints and Prompts"
 
     def save_inputs(self, save_name: str, checkpoints: str, prompt_templates: str) -> None:
         self.save.store_values(
@@ -548,6 +317,7 @@ class CheckpointLoopScript(scripts.Script):
             "creating the grid. This can take a while, depending on the amount of images")
 
         def getFileName(save_path: str) -> str:
+            # TODO: save in folder with date as name
             if not os.path.exists(save_path):
                 os.makedirs(save_path)
 
