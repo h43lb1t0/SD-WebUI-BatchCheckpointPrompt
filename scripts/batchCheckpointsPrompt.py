@@ -4,7 +4,6 @@ import subprocess
 import sys
 from typing import List, Tuple, Union
 
-
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "scripts"))
 from scripts.Utils import Utils
 from scripts.Logger import Logger
