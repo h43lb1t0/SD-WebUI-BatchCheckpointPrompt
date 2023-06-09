@@ -8,6 +8,7 @@ import modules.shared as shared
 import modules.scripts as scripts
 import json
 
+
 class CivitaihelperPrompts():
     """
         some code snipets copyed from https://github.com/butaixianran/Stable-Diffusion-Webui-Civitai-Helper (scripts/ch_lib/model.py)
