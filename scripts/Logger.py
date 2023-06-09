@@ -1,5 +1,6 @@
 import inspect
 from pprint import pprint
+
 class Logger():
     """
         Log class with different styled logs.
