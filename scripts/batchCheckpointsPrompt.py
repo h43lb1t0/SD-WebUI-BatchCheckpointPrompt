@@ -1,25 +1,23 @@
-import copy
-import inspect
-import json
 import os
 import re
 import subprocess
 import sys
-from pprint import pprint
-from time import sleep
 from typing import List, Tuple, Union
+
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "scripts"))
+from scripts.Utils import Utils
+from scripts.Logger import Logger
+from scripts.CivitaihelperPrompts import CivitaihelperPrompts
+from scripts.Save import Save
 
 import gradio as gr
 import modules
 import modules.scripts as scripts
 import modules.shared as shared
-import requests
 from modules import processing
 from modules.processing import process_images, Processed
-from modules.ui_components import (DropdownMulti, FormColumn, FormRow,
-                                   ToolButton)
+from modules.ui_components import (DropdownMulti, FormColumn, FormRow,ToolButton)
 from PIL import Image, ImageDraw, ImageFont
-
 
 class Logger():
     """
