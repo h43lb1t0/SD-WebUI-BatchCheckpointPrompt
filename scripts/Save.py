@@ -15,7 +15,7 @@ class Save():
     def __init__(self):
         self.file_name = "batchCheckpointPromptValues.json"
         self.logger = Logger()
-        self.logger.debug = False
+        self.logger.debug = True
 
     def read_file(self):
         try:
@@ -25,7 +25,7 @@ class Save():
         except FileNotFoundError:
             return {"None": ("", "")}
 
-    def store_values(self, name: str, checkpoints: str, prompts: str, overwrite_existing_save: bool) -> None:
+    def store_values(self, name: str, checkpoints: str, prompts: str, overwrite_existing_save: bool, append_existing_save: bool) -> None:
         data = {}
 
         # If the JSON file already exists, load the data into the dictionary
@@ -34,9 +34,18 @@ class Save():
 
         # Check if the name already exists in the data dictionary
 
-        if name in data and not overwrite_existing_save:
+        if name in data and not overwrite_existing_save and not append_existing_save:
             self.logger.log_info("Name already exists")
             return
+
+        if append_existing_save:
+            self.logger.debug_log(f"Name: {name}")
+            read_values = self.read_value([name])
+            self.logger.pretty_debug_log(read_values)
+            checkpoints_list = [read_values[0], checkpoints]
+            prompts_list = [read_values[1], prompts]
+            checkpoints = ",\n".join(checkpoints_list)
+            prompts = ";\n".join(prompts_list)
 
         # Add the data to the dictionary
         data[name] = (checkpoints, prompts)
