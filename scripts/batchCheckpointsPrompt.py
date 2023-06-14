@@ -60,9 +60,9 @@ class CheckpointLoopScript(scripts.Script):
     def title(self) -> str:
         return "Batch Checkpoint and Prompt"
 
-    def save_inputs(self, save_name: str, checkpoints: str, prompt_templates: str) -> None:
+    def save_inputs(self, save_name: str, checkpoints: str, prompt_templates: str, overwrite_existing_save_checkbox: bool) -> None:
         self.save.store_values(
-            save_name.strip(), checkpoints.strip(), prompt_templates.strip())
+            save_name.strip(), checkpoints.strip(), prompt_templates.strip(), overwrite_existing_save_checkbox)
 
     def load_inputs(self, name: str) -> None:
         values = self.save.read_value(name.strip())
@@ -102,7 +102,9 @@ class CheckpointLoopScript(scripts.Script):
                 save_name = gr.inputs.Textbox(
                     lines=1, label="save name", placeholder="save name")
                 save_button = ToolButton(value=self.save_symbol, visible=True)
-            # self.save_label = gr.outputs.Label("")
+            overwrite_existing_save_checkbox = gr.inputs.Checkbox(label="Overwrite existing save")
+            #self.save_label = gr.Markdown("Save label")
+            
 
             with FormRow():
                 keys = self.save.get_keys()
@@ -116,7 +118,7 @@ class CheckpointLoopScript(scripts.Script):
             fill_checkpoints_button.click(
                 fn=self.get_checkpoints, outputs=[checkpoints_input])
             save_button.click(fn=self.save_inputs, inputs=[
-                save_name, checkpoints_input, checkpoints_prompt])
+                save_name, checkpoints_input, checkpoints_prompt, overwrite_existing_save_checkbox])
             load_button.click(fn=self.save.read_value, inputs=[saved_inputs_dropdown], outputs=[
                 checkpoints_input, checkpoints_prompt])
             civitai_prompt_fill_button.click(fn=self.civitai_helper.createCivitaiPromptString, inputs=[

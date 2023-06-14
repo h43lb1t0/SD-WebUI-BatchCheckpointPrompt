@@ -25,7 +25,7 @@ class Save():
         except FileNotFoundError:
             return {"None": ("", "")}
 
-    def store_values(self, name: str, checkpoints: str, prompts: str) -> None:
+    def store_values(self, name: str, checkpoints: str, prompts: str, overwrite_existing_save: bool) -> None:
         data = {}
 
         # If the JSON file already exists, load the data into the dictionary
@@ -33,7 +33,8 @@ class Save():
             data = self.read_file()
 
         # Check if the name already exists in the data dictionary
-        if name in data:
+
+        if name in data and not overwrite_existing_save:
             self.logger.log_info("Name already exists")
             return
 
