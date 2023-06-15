@@ -37,11 +37,19 @@ specifies how many pixels should be between the checkpoint images in the grid cr
 
 ## save
 You can save the state. Use a unique name for this. I.e. no duplicate names. Press the 💾 button to save.
-To overwrite a saved state, check the `Overwrite existing save` checkbox and press the 💾 button.
-To append to a saved state, check the `append existing save` checkbox and press the 💾 button.
+- To overwrite a saved state, check the `Overwrite existing save` checkbox and press the 💾 button.
+- To append to a saved state, check the `append existing save` checkbox and press the 💾 button.
+
+Currently only the Terminal displays the success or failure of the save.
 
 ### load
 To reload a saved state, select it from the drop-down menu and press the 📒 button. This is a multiple selection menu, but only the first selection is taken into account.
+The whole system has to be reloaded to load a new save.
+
+<hr>
+
+## advanced settings
+The basismodel version of the checkpoint can now be inserted with the 🔢 button next to the index, but this is quite slow and takes about 5 minutes on my system with 90 checkpoints. To enable this check under advanced settings the checkbox `Add model version to checkpoint names`.
 
 <hr>
 

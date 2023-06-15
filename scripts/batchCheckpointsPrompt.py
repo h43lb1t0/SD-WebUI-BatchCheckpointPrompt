@@ -9,14 +9,16 @@ from scripts.Utils import Utils
 from scripts.Logger import Logger
 from scripts.CivitaihelperPrompts import CivitaihelperPrompts
 from scripts.Save import Save
+from scripts.settings import on_ui_settings
 
 import gradio as gr
 import modules
 import modules.scripts as scripts
 import modules.shared as shared
-from modules import processing
+from modules import processing, script_callbacks
 from modules.processing import process_images, Processed
 from modules.ui_components import (DropdownMulti, FormColumn, FormRow,ToolButton)
+
 from PIL import Image, ImageDraw, ImageFont
 
 
@@ -56,6 +58,8 @@ class CheckpointLoopScript(scripts.Script):
         self.save = Save()
         self.utils = Utils()
         self.civitai_helper = CivitaihelperPrompts()
+        #script_callbacks.on_ui_settings(on_ui_settings)
+
 
     def title(self) -> str:
         return "Batch Checkpoint and Prompt"
@@ -75,8 +79,10 @@ class CheckpointLoopScript(scripts.Script):
                 f"{checkpoint_list_no_index[i]} @index:{i}")
         return ',\n'.join(checkpoint_list_with_index)
 
-    def getCheckpoints_and_prompt_with_index(self, checkpoint_list: str, prompts: str) -> Tuple[str, str]:
+    def getCheckpoints_and_prompt_with_index_and_version(self, checkpoint_list: str, prompts: str, add_model_version: bool) -> Tuple[str, str]:
         checkpoints = self.utils.add_index_to_string(checkpoint_list)
+        if add_model_version:
+            checkpoints = self.utils.add_model_version_to_string(checkpoints)
         prompts = self.utils.add_index_to_string(prompts, is_checkpoint=False)
         return checkpoints, prompts
 
@@ -117,6 +123,14 @@ class CheckpointLoopScript(scripts.Script):
                     choices=keys, label="Saved values")
                 load_button = ToolButton(
                     value=self.fill_values_symbol, visible=True)
+                
+                
+            with gr.Accordion(label='Advanced settings', open=False):
+                gr.Markdown("""
+                    This can take a long time depending on the number of checkpoints! <br>
+                    See the help tab for more information
+                """)
+                add_model_version_checkbox = gr.inputs.Checkbox(label="Add model version to checkpoint names")
 
             # Actions
 
@@ -128,8 +142,8 @@ class CheckpointLoopScript(scripts.Script):
                 checkpoints_input, checkpoints_prompt])
             civitai_prompt_fill_button.click(fn=self.civitai_helper.createCivitaiPromptString, inputs=[
                 checkpoints_input], outputs=[checkpoints_prompt])
-            add_index_button.click(fn=self.getCheckpoints_and_prompt_with_index, inputs=[
-                                   checkpoints_input, checkpoints_prompt], outputs=[checkpoints_input, checkpoints_prompt])
+            add_index_button.click(fn=self.getCheckpoints_and_prompt_with_index_and_version, inputs=[
+                                   checkpoints_input, checkpoints_prompt, add_model_version_checkbox], outputs=[checkpoints_input, checkpoints_prompt])
         with gr.Tab("help"):
             gr.Markdown(self.utils.get_help_md())
         return [checkpoints_input, checkpoints_prompt, margin_size]
