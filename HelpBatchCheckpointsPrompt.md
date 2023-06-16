@@ -15,7 +15,7 @@ either enter the names of the checkpoints yourself, keep in mind that if you hav
 
 ## Prompts/prompt templates for Checkpoints
 here you enter the prompts for the checkpoints, each in the same order as the checkpoints are.
-If you have installed the [Civitai Helper2](https://github.com/butaixianran/Stable-Diffusion-Webui-Civitai-Helper) extension, this button automatically launches the prompts from the checkpoint thumbnails into the textbox.
+If you have installed the [Civitai Helper](https://github.com/butaixianran/Stable-Diffusion-Webui-Civitai-Helper) extension, this button automatically launches the prompts from the checkpoint thumbnails into the textbox.
 If you don't have this installed it will simply load `{prompt};` for each checkpoint. Just like if there is no prompt for the preview image.
 <br>
 hires fix always uses the same prompts as for the first pass of the checkpoint, even if extra hires fix prompts were specified.
@@ -40,8 +40,6 @@ You can save the state. Use a unique name for this. I.e. no duplicate names. Pre
 - To overwrite a saved state, check the `Overwrite existing save` checkbox and press the 💾 button.
 - To append to a saved state, check the `append existing save` checkbox and press the 💾 button.
 
-Currently only the Terminal displays the success or failure of the save.
-
 ### load
 To reload a saved state, select it from the drop-down menu and press the 📒 button. This is a multiple selection menu, but only the first selection is taken into account.
 The whole system has to be reloaded to load a new save.
@@ -54,5 +52,4 @@ The basismodel version of the checkpoint can now be inserted with the 🔢 butto
 <hr>
 
 ## more
-For more information and known bugs visit the Github page of this Script:
-https://github.com/h43lb1t0/BatchCheckpointPrompt
+You found a bug or want to contribute to the script? Visit the github page (link can be found in the extensions tab)
