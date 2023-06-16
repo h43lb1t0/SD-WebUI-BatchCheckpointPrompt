@@ -25,7 +25,7 @@ class Save():
         except FileNotFoundError:
             return {"None": ("", "")}
 
-    def store_values(self, name: str, checkpoints: str, prompts: str, overwrite_existing_save: bool, append_existing_save: bool) -> None:
+    def store_values(self, name: str, checkpoints: str, prompts: str, overwrite_existing_save: bool, append_existing_save: bool) -> str:
         data = {}
 
         # If the JSON file already exists, load the data into the dictionary
@@ -36,7 +36,7 @@ class Save():
 
         if name in data and not overwrite_existing_save and not append_existing_save:
             self.logger.log_info("Name already exists")
-            return
+            return f'Name "{name}" already exists'
 
         if append_existing_save:
             self.logger.debug_log(f"Name: {name}")
@@ -55,6 +55,12 @@ class Save():
             json.dump(data, f)
 
         self.logger.log_info("saved checkpoints and Prompts")
+        if append_existing_save:
+            return f'Appended "{name}"'
+        elif overwrite_existing_save:
+            return f'Overwrote "{name}"'
+        else:
+            return f'Saved "{name}"'
 
     def read_value(self, name: str) -> Tuple[str, str]:
         name = name[0]
