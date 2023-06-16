@@ -9,7 +9,7 @@ from scripts.Utils import Utils
 from scripts.Logger import Logger
 from scripts.CivitaihelperPrompts import CivitaihelperPrompts
 from scripts.Save import Save
-from scripts.settings import on_ui_settings
+
 
 import gradio as gr
 import modules
