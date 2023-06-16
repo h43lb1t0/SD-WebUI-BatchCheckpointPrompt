@@ -10,10 +10,6 @@ import json
 
 
 class CivitaihelperPrompts():
-    """
-        some code snipets copyed from https://github.com/butaixianran/Stable-Diffusion-Webui-Civitai-Helper (scripts/ch_lib/model.py)
-        this whole thing will not do the desired thing when the above mentioned exitension is not installed and used
-    """
 
     def get_custom_model_folder(self) -> str:
         if shared.cmd_opts.ckpt_dir and os.path.isdir(shared.cmd_opts.ckpt_dir):
