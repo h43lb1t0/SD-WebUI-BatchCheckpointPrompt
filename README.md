@@ -40,16 +40,21 @@ In the second textbox you write the prompts for each checkpoint in the same orde
 <br>
 hires fix always uses the same prompts as for the first pass of the checkpoint, even if extra hires fix prompts were specified
 <br><br>
-An example of RealisticVision and deliberate:
+An example of replicantV30_v30 and artiusV21_v21:
 ![base prompt](https://raw.githubusercontent.com/h43lb1t0/CheckpointPromptLoop/main/img/BasePrompt.png)
 ![Script Screenshot](https://raw.githubusercontent.com/h43lb1t0/CheckpointPromptLoop/main/img/CheckpointLoop.png)
 <br>
-The Prompt for deliberate:
-"a closeup portrait of one young woman, long blonde hair, wearing a black skirt and a white blouse,standing in nature, flirting with camera"
+
+**The Prompt for replicantV30_v30:**
+
+`(masterpiece, best quality),from above , one young woman, long blonde hair, wearing a black skirt and a pink blouse,standing in an urban park area`
 <br>
-The prompt for RealisticVision:
-"RAW photo, one young woman, long blonde hair, wearing a black skirt and a white blouse,standing in nature, (high detailed skin:1.2), 8k uhd, dslr, soft lighting, high quality, film grain, Fujifilm XT3"
+
+**The prompt for artiusV21_v21:**
+
+`Portrait photo of one young woman, long blonde hair, wearing a black skirt and a pink blouse,standing in an urban park area, (cinematic:1.5), epic realistic, hyperdetailed, insane details, intricate details, accent lighting, soft volumetric light, bokeh, (dramatic light:1.2), (neutral colors:1.3), cross process`
 <br>
+
 ![grid created by the Script](https://raw.githubusercontent.com/h43lb1t0/BatchCheckpointPrompt/main/img/grid.png)
 <br>
 by adding ```{{int value}}``` at the end of the prompt you can set the batch count for the corresponding checkpoint.
