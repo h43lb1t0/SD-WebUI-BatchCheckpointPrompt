@@ -4,6 +4,11 @@ a script for [AUTOMATIC1111](https://github.com/AUTOMATIC1111/stable-diffusion-w
 ### what does it do?
 Creates images with with different checkpoints and prompts. Either different prompts for each checkpoint or the base prompt is inserted into each template for the checkpoint.
 
+
+#### why use this and not x/y/z plot?
+Different checkpoints need different trigger words, or you want to test the same prompt with a photorealistic model and an anime model, then it would be good if the prompt for the anime model is not `RAW Color photo of ...`
+This script takes the positive prompt and always inserts it into the prompt for the respective model, so that the prompt for the anime model is no longer RAW Color photo, etc.
+
 ### Instalation
 can now be installed like an extension: <br>
 extensions > install from URL
@@ -57,8 +62,8 @@ If no value is specified, the batch count selected in the UI will be used.
 although the correct info texts are displayed, send to img2img and send to inpaint do not pass the correct data, but only the base prompt.
 
 <br>
-works with [Dynamic Prompts](https://github.com/adieyal/sd-dynamic-prompts), but jinja2 templates can cause unexpected behavior.
 
+works with [Dynamic Prompts](https://github.com/adieyal/sd-dynamic-prompts), but jinja2 templates can cause unexpected behavior.
 <br><br>
 if you find any other bugs besides the ones mentioned above, open a new Issue. Please give as many details as possible
 
