@@ -15,7 +15,7 @@ class Save():
     def __init__(self):
         self.file_name = "batchCheckpointPromptValues.json"
         self.logger = Logger()
-        self.logger.debug = True
+        self.logger.debug = False
 
     def read_file(self):
         try:
