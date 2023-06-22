@@ -105,6 +105,15 @@ class CheckpointLoopScript(scripts.Script):
                 label="Grid margins (px)", minimum=0, maximum=10, value=0, step=1)
 
             # save and load inputs
+
+            with FormRow():
+                keys = self.save.get_keys()
+                saved_inputs_dropdown = DropdownMulti(
+                    choices=keys, label="Saved values")
+                load_button = ToolButton(
+                    value=self.fill_values_symbol, visible=True)
+
+
             with FormRow():
                 save_name = gr.inputs.Textbox(
                     lines=1, label="save name", placeholder="save name")
@@ -118,12 +127,7 @@ class CheckpointLoopScript(scripts.Script):
                 save_status = gr.Textbox(label="", interactive=False)
             
 
-            with FormRow():
-                keys = self.save.get_keys()
-                saved_inputs_dropdown = DropdownMulti(
-                    choices=keys, label="Saved values")
-                load_button = ToolButton(
-                    value=self.fill_values_symbol, visible=True)
+            
                 
                 
             with gr.Accordion(label='Advanced settings', open=False):
@@ -286,7 +290,7 @@ class CheckpointLoopScript(scripts.Script):
         prompts = [prompt.replace('\n', '').strip(
         ) for prompt in promts if not prompt.isspace() and prompt != '']
 
-        def get_batch_couint_from_prompt() -> None:
+        def get_batch_count_from_prompt() -> None:
             # extracts the batch count from the prompt if specified
             for i, prompt in enumerate(prompts):
                 number_match = re.search(r"\{\{-?[0-9]+\}\}", prompt)
@@ -312,7 +316,19 @@ class CheckpointLoopScript(scripts.Script):
                     postive_prompt, negative_prompt, batch_count = prompts[i]
                     prompts[i] = ("".join(parts), neg_prompt, batch_count)
 
-        get_batch_couint_from_prompt()
+        """ def get_clip_skip_from_prompt() -> None:
+            # extracts the clip skip from the prompt if specified
+            for i, prompt in enumerate(prompts):
+                number_match = re.search(r"\{\{clip_skip:[0-9]+\}\}", prompt)
+                if number_match:
+                    # Extract the number from the match object
+                    number = int(number_match.group(0)[12:-2])
+                    prompts[i] = (
+                        re.sub(r"\{\{clip_skip:[0-9]+\}\}", '', prompt), "", number)
+                else:
+                    prompts[i] = (prompt, "", -1) """
+
+        get_batch_count_from_prompt()
         split_postive_and_negative_postive_prompt()
 
         for checkpoint in checkpoints:
