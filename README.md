@@ -57,9 +57,7 @@ An example of replicantV30_v30 and artiusV21_v21:
 
 ![grid created by the Script](https://raw.githubusercontent.com/h43lb1t0/BatchCheckpointPrompt/main/img/grid.png)
 <br>
-by adding ```{{int value}}``` at the end of the prompt you can set the batch count for the corresponding checkpoint.
-If no value is specified, the batch count selected in the UI will be used.
-
+some settings can be changed individually for each checkpoint. Syntax can be found in the help tab of the script
 <hr>
 
 ### bugs
@@ -81,3 +79,4 @@ If you want to contribute something to the script just open a pull request and I
 - [x] add negative prompt
 - [x] add basemodel version next to the Checkpointname
 - [ ] reload button for save and load
+- [ ] add clip skip for each checkpoint
