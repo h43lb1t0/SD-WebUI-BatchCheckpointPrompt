@@ -79,4 +79,4 @@ If you want to contribute something to the script just open a pull request and I
 - [x] add negative prompt
 - [x] add basemodel version next to the Checkpointname
 - [ ] reload button for save and load
-- [ ] add clip skip for each checkpoint
+- [x] add clip skip for each checkpoint
