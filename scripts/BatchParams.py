@@ -29,7 +29,7 @@ class BatchParams:
 def get_all_batch_params(p: Union[modules.processing.StableDiffusionProcessingTxt2Img, modules.processing.StableDiffusionProcessingImg2Img], checkpoints_as_string: str, prompts_as_string: str) -> List[BatchParams]:
 
         logger = Logger()
-        logger.debug = True
+        logger.debug = False
         utils = Utils()
 
         def get_batch_count_from_prompt(prompt: str) -> Tuple[int, str]:
