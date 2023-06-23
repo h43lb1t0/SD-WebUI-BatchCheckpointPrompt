@@ -9,6 +9,7 @@ from scripts.Utils import Utils
 from scripts.Logger import Logger
 from scripts.CivitaihelperPrompts import CivitaihelperPrompts
 from scripts.Save import Save
+from scripts.BatchParams import BatchParams, get_all_batch_params
 
 
 import gradio as gr
@@ -50,7 +51,6 @@ class CheckpointLoopScript(scripts.Script):
         self.logger.debug = False
         self.font = None
         self.text_margin_left_and_right = 16
-        self.n_iter = 1
         self.fill_values_symbol = "\U0001f4d2"  # 📒
         self.save_symbol = "\U0001F4BE"  # 💾
         self.reload_symbol = "\U0001F504"  # 🔄
@@ -159,25 +159,26 @@ class CheckpointLoopScript(scripts.Script):
 
     # loads the new checkpoint and replaces the original prompt with the new one
     # and processes the image(s)
+        
 
-    def get_n_iter(self, generation_data: Tuple[str, str, int]) -> int:
-        if generation_data[2] == -1:
-            return self.n_iter
-        else:
-            return generation_data[2]
-
-    def generate_images_with_SD(self, p: Union[modules.processing.StableDiffusionProcessingTxt2Img, modules.processing.StableDiffusionProcessingImg2Img], generation_data: Tuple[str, str, int], checkpoint: str) -> modules.processing.Processed:
+    def generate_images_with_SD(self,p: Union[modules.processing.StableDiffusionProcessingTxt2Img, modules.processing.StableDiffusionProcessingImg2Img], batch_params: BatchParams) -> modules.processing.Processed:
+        
+        self.logger.debug_log(batch_params)
+        
         info = None
-        info = modules.sd_models.get_closet_checkpoint_match(checkpoint)
+        info = modules.sd_models.get_closet_checkpoint_match(batch_params.checkpoint)
         modules.sd_models.reload_model_weights(shared.sd_model, info)
         p.override_settings['sd_model_checkpoint'] = info.name
-        p.prompt = generation_data[0]
-        p.negative_prompt += generation_data[1]
-        p.n_iter = self.get_n_iter(generation_data)
-        p.hr_prompt = generation_data[0]
+        p.prompt = batch_params.prompt
+        p.negative_prompt = batch_params.neg_prompt
+        p.n_iter = batch_params.batch_count
+        shared.opts.data["CLIP_stop_at_last_layers"] = batch_params.clip_skip
+        p.hr_prompt = p.prompt
         p.hr_negative_prompt = p.negative_prompt
         self.logger.debug_log(f"batch count {p.n_iter}")
+
         processed = process_images(p)
+
         # TODO maybe try to add again later
         # unload the checkpoint to save vram
         #modules.sd_models.unload_model_weights(shared.sd_model, info)
@@ -208,25 +209,17 @@ class CheckpointLoopScript(scripts.Script):
         image_processed = []
         self.margin_size = margin_size
 
-        def get_total_batch_count(promts) -> int:
+        def get_total_batch_count(batchParams: List[BatchParams]) -> int:
             summe = 0
-            for promt in promts:
-                value = promt[2]
-                if value == -1:
-                    summe += self.n_iter
-                else:
-                    summe += value
+            for param in batchParams:
+                summe += param.batch_count
             return summe
+        
+        self.base_prompt: str = p.prompt
 
+        all_batchParams = get_all_batch_params(p, checkpoints_text, checkpoints_prompt)
 
-        checkpoints, promts = self.get_checkpoints_and_prompt(
-            checkpoints_text, checkpoints_prompt)
-
-        self.base_prompt = p.prompt
-        neg_prompt = p.negative_prompt
-        self.n_iter = p.n_iter
-
-        total_batch_count = get_total_batch_count(promts)
+        total_batch_count = get_total_batch_count(all_batchParams)
         total_steps = p.steps * total_batch_count
         self.logger.debug_log(f"total steps: {total_steps}")
 
@@ -238,34 +231,27 @@ class CheckpointLoopScript(scripts.Script):
         p.extra_generation_params['Script'] = self.title()
 
 
-        for i, checkpoint in enumerate(checkpoints):
-            p.negative_prompt = neg_prompt
+        for i, checkpoint in enumerate(all_batchParams):
             
+            self.logger.log_info(f"checkpoint: {i+1}/{len(all_batchParams)}")
 
-            self.logger.log_info(f"checkpoint: {i+1}/{len(checkpoints)}")
 
-            prompt = promts[i][0].replace(
-                "{prompt}", self.base_prompt)
-
-            generation_data = (prompt, promts[i][1], promts[i][2])
             self.logger.debug_log(
-                f"Propmpt with replace: {generation_data[0]}")
+                f"Propmpt with replace: {all_batchParams[i].prompt}, neg prompt: {all_batchParams[i].neg_prompt}")
             
-                        
 
-            processed_sd_object = self.generate_images_with_SD(
-                p, generation_data, checkpoint)
+            processed_sd_object = self.generate_images_with_SD(p, all_batchParams[i])
 
             image_processed.append(processed_sd_object)
 
             
-            all_infotexts = self.generate_infotexts(processed_sd_object, all_infotexts, self.get_n_iter(generation_data))
+            all_infotexts = self.generate_infotexts(processed_sd_object, all_infotexts, all_batchParams[i].batch_count)
 
 
             if shared.state.interrupted:
                 break
 
-        img_grid = self.create_grid(image_processed, checkpoints)
+        img_grid = self.create_grid(image_processed, all_batchParams)
 
         image_processed[0].images.insert(0, img_grid)
         image_processed[0].index_of_first_image = 1
@@ -280,77 +266,9 @@ class CheckpointLoopScript(scripts.Script):
 
         return image_processed[0]
 
-    def get_checkpoints_and_prompt(self, checkpoints_text: str, checkpoints_prompt: str) -> Tuple[List[str], List[Tuple[str, str, int]]]:
+    
 
-        checkpoints = self.utils.getCheckpointListFromInput(checkpoints_text)
-        checkpoints_prompt = self.utils.remove_index_from_string(
-            checkpoints_prompt)
-        promts = checkpoints_prompt.split(";")
-        # postive_prompts, negative_prompts = None
-        prompts = [prompt.replace('\n', '').strip(
-        ) for prompt in promts if not prompt.isspace() and prompt != '']
-
-        def get_batch_count_from_prompt() -> None:
-            # extracts the batch count from the prompt if specified
-            for i, prompt in enumerate(prompts):
-                number_match = re.search(r"\{\{-?[0-9]+\}\}", prompt)
-                if number_match:
-                    # Extract the number from the match object
-                    number = int(number_match.group(0)[2:-2])
-                    number = -1 if number < 1 else number
-                    prompts[i] = (
-                        re.sub(r"\{\{-?[0-9]+\}\}", '', prompt), "", number)
-                else:
-                    prompts[i] = (prompt, "", -1)
-
-        def split_postive_and_negative_postive_prompt() -> None:
-            pattern = r'{{neg:(.*?)}}'
-            for i, prompt in enumerate(prompts):
-                # Split the input string into parts
-                parts = re.split(pattern, prompts[i][0])
-                extracted_text = ""
-                # If pattern is found, save it to a variable and remove it from the list
-                if len(parts) > 2:
-                    neg_prompt = parts[1]  # save the extracted text
-                    parts.pop(1)  # remove matched pattern
-                    postive_prompt, negative_prompt, batch_count = prompts[i]
-                    prompts[i] = ("".join(parts), neg_prompt, batch_count)
-
-        """ def get_clip_skip_from_prompt() -> None:
-            # extracts the clip skip from the prompt if specified
-            for i, prompt in enumerate(prompts):
-                number_match = re.search(r"\{\{clip_skip:[0-9]+\}\}", prompt)
-                if number_match:
-                    # Extract the number from the match object
-                    number = int(number_match.group(0)[12:-2])
-                    prompts[i] = (
-                        re.sub(r"\{\{clip_skip:[0-9]+\}\}", '', prompt), "", number)
-                else:
-                    prompts[i] = (prompt, "", -1) """
-
-        get_batch_count_from_prompt()
-        split_postive_and_negative_postive_prompt()
-
-        for checkpoint in checkpoints:
-
-            info = modules.sd_models.get_closet_checkpoint_match(checkpoint)
-            if info is None:
-                raise RuntimeError(f"Unknown checkpoint: {checkpoint}")
-
-        if len(prompts) != len(checkpoints):
-            self.logger.debug_log(
-                f"len prompt: {len(prompts)}, len checkpoints{len(checkpoints)}")
-            self.logger.pretty_debug_log(prompts)
-            self.logger.pretty_debug_log(checkpoints)
-            raise RuntimeError(
-                f"amount of prompts don't match with amount of checkpoints")
-
-        if len(prompts) == 0:
-            raise RuntimeError(f"can't run without a checkpoint and prompt")
-
-        return checkpoints, prompts
-
-    def create_grid(self, image_processed: list, checkpoints: str):
+    def create_grid(self, image_processed: list, all_batch_params: List[BatchParams]):
         self.logger.log_info(
             "creating the grid. This can take a while, depending on the amount of images")
 
@@ -387,7 +305,7 @@ class CheckpointLoopScript(scripts.Script):
         img_with_legend = []
         for i, img in enumerate(image_processed):
             img_with_legend.append(self.add_legend(
-                img.images[0], checkpoints[i]))
+                img.images[0], all_batch_params[i].checkpoint))
 
         for img in img_with_legend:
             max_height = max(max_height, img.size[1])
