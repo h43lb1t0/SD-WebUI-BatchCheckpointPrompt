@@ -21,8 +21,8 @@ class Logger():
             print(f"\tat: {caller_function_name}\n")
 
 
-    def debug_log(self, msg: str) -> None:
-        if self.debug:
+    def debug_log(self, msg: str, debug=False) -> None:
+        if self.debug or debug:
             print(f"\n\tDEBUG: {msg}")
             self.log_caller()
 
