@@ -23,7 +23,8 @@ hires fix always uses the same prompts as for the first pass of the checkpoint, 
 - `promptA; promptB` Separate the prompts with a semicolon.
 - `@index:number` Is automatically added after the checkpoint name when you load the checkpoint by 📒 button.
 - `{prompt}` insert this at the point in the checkpoint specific prompt where you want the positive prompt to be inserted.
-- `{{number}}` Add this to the end of the prompt to set a different batch count for this checkpoint
+- `{{count:number}}` Add this to the end of the prompt to set a different batch count for this checkpoint
+- `{{clip_skip:number}}` Add this to the end of the prompt to set a different clip skip for this checkpoint
 - `{{neg: negativ prompt text here}}`Add this to the end of the prompt, the text will be simply added to the back of the negative prompt
 <hr>
 
