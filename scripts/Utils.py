@@ -52,7 +52,7 @@ class Utils():
         return checkpoints_text
 
     def get_clean_checkpoint_path(self, checkpoint: str) -> str:
-        return re.sub(r'\[.*?\]', '', checkpoint).strip()
+        return re.sub(r' \[.*?\]', '', checkpoint).strip()
 
     def getCheckpointListFromInput(self, checkpoints_text: str, clean: bool = True) -> List[str]:
         self.logger.debug_log(f"checkpoints: {checkpoints_text}")
