@@ -1,3 +1,4 @@
+from copy import copy
 import os
 import re
 import subprocess
@@ -58,7 +59,6 @@ class CheckpointLoopScript(scripts.Script):
         self.save = Save()
         self.utils = Utils()
         self.civitai_helper = CivitaihelperPrompts()
-        #script_callbacks.on_ui_settings(on_ui_settings)
 
 
     def title(self) -> str:
@@ -185,14 +185,15 @@ class CheckpointLoopScript(scripts.Script):
         return processed
     
 
-    def generate_infotexts(self, process_images_object: modules.processing.Processed, all_infotexts: List[str], n_iter: int) -> List[str]:
+    def generate_infotexts(self, pc: Union[modules.processing.StableDiffusionProcessingTxt2Img, modules.processing.StableDiffusionProcessingImg2Img], all_infotexts: List[str], n_iter: int) -> List[str]:
 
         def do_stuff(i=0) -> str:
             return processing.create_infotext(pc, pc.all_prompts, pc.all_seeds, pc.all_subseeds, position_in_batch=i)
 
         self.logger.pretty_debug_log(all_infotexts)
 
-        pc = process_images_object
+
+        self.logger.debug_print_attributes(pc)
 
         if n_iter == 1:
             all_infotexts.append(do_stuff())
@@ -245,7 +246,7 @@ class CheckpointLoopScript(scripts.Script):
             image_processed.append(processed_sd_object)
 
             
-            all_infotexts = self.generate_infotexts(processed_sd_object, all_infotexts, all_batchParams[i].batch_count)
+            all_infotexts = self.generate_infotexts(copy(p), all_infotexts, all_batchParams[i].batch_count)
 
 
             if shared.state.interrupted:
