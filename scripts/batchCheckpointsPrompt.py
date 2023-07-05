@@ -86,6 +86,10 @@ class CheckpointLoopScript(scripts.Script):
             checkpoints = self.utils.add_model_version_to_string(checkpoints)
         prompts = self.utils.add_index_to_string(prompts, is_checkpoint=False)
         return checkpoints, prompts
+    
+    def refresh_saved(self):
+        return gr.Dropdown.update(choices=self.save.get_keys())
+
 
     def ui(self, is_img2img):
         with gr.Tab("Parameters"):
@@ -112,6 +116,7 @@ class CheckpointLoopScript(scripts.Script):
                     choices=keys, label="Saved values")
                 load_button = ToolButton(
                     value=self.fill_values_symbol, visible=True)
+                refresh_button = ToolButton(value=self.reload_symbol, visible=True)
 
 
             with FormRow():
@@ -149,6 +154,9 @@ class CheckpointLoopScript(scripts.Script):
                 checkpoints_input], outputs=[checkpoints_prompt])
             add_index_button.click(fn=self.getCheckpoints_and_prompt_with_index_and_version, inputs=[
                                    checkpoints_input, checkpoints_prompt, add_model_version_checkbox], outputs=[checkpoints_input, checkpoints_prompt])
+        
+            refresh_button.click(fn=self.refresh_saved, outputs=[saved_inputs_dropdown]) 
+
         with gr.Tab("help"):
             gr.Markdown(self.utils.get_help_md())
         return [checkpoints_input, checkpoints_prompt, margin_size]
