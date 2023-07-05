@@ -43,7 +43,7 @@ You can save the state. Use a unique name for this. I.e. no duplicate names. Pre
 
 ### load
 To reload a saved state, select it from the drop-down menu and press the 📒 button. This is a multiple selection menu, but only the first selection is taken into account.
-The whole system has to be reloaded to load a new save.
+To load new saves, press the 🔄 button before selecting a save from the drop-down menu.
 
 <hr>
 
