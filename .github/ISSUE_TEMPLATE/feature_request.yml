@@ -1,0 +1,42 @@
+name: Feature request
+description: Request a new feature
+title: "[Feature Request]: "
+labels: ["enhancement"]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to fill out this feature request!
+
+  - type: checkboxes
+    id: otherIssues
+    attributes:
+      label: Please search to see if an issue already exists for the feature you want, and that it hasn't been fixed in a recent build/commit.
+      options:
+        - label: I have searched the existing issues
+          required: true
+
+  - type: textarea
+    id: what-should-happen
+    attributes:
+      label: What would this feature do?
+      description: Also tell us, what your feature idea would do?
+    validations:
+      required: true
+
+  - type: textarea
+    id: workflow
+    attributes:
+      label: What is the workflow for your feature idea?
+      description: Tell us how your feature idea would work. What Syntax would you use (if applicable)?
+    validations:
+      required: true
+
+  - type: textarea
+    id: other-info
+    attributes:
+      label: Any other information?
+      description: Any other information you want to add?
+    validations:
+      required: false
