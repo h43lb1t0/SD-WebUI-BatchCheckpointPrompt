@@ -90,7 +90,7 @@ class CheckpointLoopScript(scripts.Script):
     def refresh_saved(self):
         return gr.Dropdown.update(choices=self.save.get_keys())
 
-
+    # ui() doesn't show references because the code that calls it is
     def ui(self, is_img2img):
         with gr.Tab("Parameters"):
             with FormRow():
@@ -127,6 +127,11 @@ class CheckpointLoopScript(scripts.Script):
                 overwrite_existing_save_checkbox = gr.inputs.Checkbox(label="Overwrite existing save")
                 append_existing_save_checkbox = gr.inputs.Checkbox(label="append existing save")
 
+                #adding checkbox to allow for single prompt or fewer prompts than models (just loops through)
+                cycle_prompts_checkbox = gr.inputs.Checkbox(
+                    label="Loop through prompts (if fewer prompts than models). If unchecked, model and prompt list must be the same length.")
+
+
                 """ if overwrite_existing_save_checkbox:
                     append_existing_save_checkbox.visible = False """
                 save_status = gr.Textbox(label="", interactive=False)
@@ -159,7 +164,11 @@ class CheckpointLoopScript(scripts.Script):
 
         with gr.Tab("help"):
             gr.Markdown(self.utils.get_help_md())
-        return [checkpoints_input, checkpoints_prompt, margin_size]
+        #return [checkpoints_input, checkpoints_prompt, margin_size]
+        return [checkpoints_input, checkpoints_prompt, margin_size, cycle_prompts_checkbox]
+         # where does this return to? how do I implement the cycle prompts checkbox? 
+         # answer: it returns to the main.py file, and the cycle prompts checkbox is implemented in the run() function below
+
 
     def show(self, is_img2img) -> bool:
         self.is_img2_img = is_img2img
@@ -213,7 +222,9 @@ class CheckpointLoopScript(scripts.Script):
         return all_infotexts
 
 
-    def run(self, p: Union[modules.processing.StableDiffusionProcessingTxt2Img, modules.processing.StableDiffusionProcessingImg2Img], checkpoints_text, checkpoints_prompt, margin_size) -> modules.processing.Processed:
+    #def run(self, p: Union[modules.processing.StableDiffusionProcessingTxt2Img, modules.processing.StableDiffusionProcessingImg2Img], checkpoints_text, checkpoints_prompt, margin_size) -> modules.processing.Processed:
+    def run(self, p: Union[modules.processing.StableDiffusionProcessingTxt2Img, modules.processing.StableDiffusionProcessingImg2Img], checkpoints_text, checkpoints_prompt, margin_size, cycle_prompts_checkbox) -> modules.processing.Processed:
+
 
         image_processed = []
         self.margin_size = margin_size
@@ -226,7 +237,7 @@ class CheckpointLoopScript(scripts.Script):
         
         self.base_prompt: str = p.prompt
 
-        all_batchParams = get_all_batch_params(p, checkpoints_text, checkpoints_prompt)
+        all_batchParams = get_all_batch_params(p, checkpoints_text, checkpoints_prompt, cycle_prompts_checkbox)
 
         total_batch_count = get_total_batch_count(all_batchParams)
         total_steps = p.steps * total_batch_count

@@ -2,6 +2,8 @@ from dataclasses import dataclass
 from typing import Union, List, Tuple
 import re
 import os
+import itertools
+
 
 from scripts.Logger import Logger
 from scripts.Utils import Utils
@@ -25,8 +27,8 @@ class BatchParams:
                f"batch_count: {self.batch_count},\n "
                f"clip_skip: {self.clip_skip}\n")
 
-
-def get_all_batch_params(p: Union[modules.processing.StableDiffusionProcessingTxt2Img, modules.processing.StableDiffusionProcessingImg2Img], checkpoints_as_string: str, prompts_as_string: str) -> List[BatchParams]:
+#def get_all_batch_params(p: Union[modules.processing.StableDiffusionProcessingTxt2Img, modules.processing.StableDiffusionProcessingImg2Img], checkpoints_as_string: str, prompts_as_string: str) -> List[BatchParams]:
+def get_all_batch_params(p: Union[modules.processing.StableDiffusionProcessingTxt2Img, modules.processing.StableDiffusionProcessingImg2Img], checkpoints_as_string: str, prompts_as_string: str, cycle_prompts: bool) -> List[BatchParams]:
 
         logger = Logger()
         logger.debug = False
@@ -82,13 +84,25 @@ def get_all_batch_params(p: Union[modules.processing.StableDiffusionProcessingTx
         prompts: List[str] = utils.remove_index_from_string(prompts_as_string).split(";")
         prompts = [prompt.replace('\n', '').strip() for prompt in prompts if not prompt.isspace() and prompt != '']
 
-        if len(prompts) != len(checkpoints):
-            logger.debug_log(f"len prompt: {len(prompts)}, len checkpoints{len(checkpoints)}")
-            raise RuntimeError(f"amount of prompts don't match with amount of checkpoints")
-
         if len(prompts) == 0:
             raise RuntimeError(f"can't run without a checkpoint and prompt")
         
+
+        if cycle_prompts:
+            # Prepare an infinite iterator from the prompts list
+            infinite_prompts_iterator: Iterator = itertools.cycle(prompts)
+
+            # convert the infinite iterator to a checkpoint-length iterator
+            checkpoint_length_prompts_iterator: Iterator = itertools.islice(infinite_prompts_iterator, len(checkpoints))
+
+            # convert the checkpoint-length iterator to a list of prompts that matches the list of checkpoints in length 
+            prompts: List[str] = list(checkpoint_length_prompts_iterator)
+            # Now single prompt will be used for all checkpoints, and a shorter prompt list will just loop through as needed.
+            # If the prompt list is longer, the extra prompts will be ignored.
+        else:
+            if len(prompts) != len(checkpoints):
+                logger.debug_log(f"len prompt: {len(prompts)}, len checkpoints{len(checkpoints)}")
+                raise RuntimeError(f"amount of prompts don't match with amount of checkpoints")
         
         for i in range(len(checkpoints)):
 
