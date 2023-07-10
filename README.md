@@ -2,6 +2,8 @@ Forked from: https://github.com/h43lb1t0/SD-WebUI-BatchCheckpointPrompt
 
 So far I've just added in a check box to let you put in one prompt and have it apply (or a shorter list of prompts than models and it will loop the prompt list)
 
+ORIGNAL README:
+
 # batch Checkpoints with Prompt
 a script for [AUTOMATIC1111](https://github.com/AUTOMATIC1111/stable-diffusion-webui)
 
