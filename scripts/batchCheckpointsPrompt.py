@@ -142,6 +142,38 @@ class CheckpointLoopScript(scripts.Script):
                 """)
                 add_model_version_checkbox = gr.inputs.Checkbox(label="Add model version to checkpoint names")
 
+                cycle_prompts_checkbox = gr.inputs.Checkbox(
+                    label="Loop Through Prompts")
+                gr.Markdown("""
+                    Prompt list will be cycled through if shorter than model list.<br>
+                    A single prompt will repeat. <br>
+                    A longer prompt list will have the extra prompts ignored.
+                """)
+                
+                enable_iterators_checkbox = gr.inputs.Checkbox(
+                    label="Enable Process Iterators")
+                gr.Markdown("""
+                    Process Iterators: use the pattern [initVal,iteratorLabel,operator,operand,operand,operand...]. The brackets and contents will be replaced by the result of the operator. The initial value will be used first, and any subsequent call to the same iterator label will apply the operator using it's optional operands.<br>
+                    <br>
+                        Example:  (close up:[0.2,iterator1,+=,0.1])   -this will start at 0.2 and increase by 0.1 every time this iterator 'iterator1' is encountered - if it's a single prompt, it will be increased every generation.  Functions available: <br>
+                    <br>
+                    ++,--,sqrt:<br>
+                    [startInt,myIteratorName,++]<br>
+                    [1,myIncrementor,++] (put after a lora/lyco training checkpoint...)<br>
+                    <br>
+                    +=,-=,*=,/=,%=,^=:<br>
+                    [startInt,myAdderName,+=,operandFloat(default=1)]<br>
+                    [0.3,myMultiplier,*=,1.1]  (this will increase slowly but faster as it goes)<br>
+                    <br>
+                    log,log10,log2:<br>
+                    [startInt,myIteratorName,sqrt,amplitudeFloat(default=1),FrequencyFloat(default=1)] <br>
+                    [0.5,mySinIterator,sin,0.1(default=1),FrequencyFloat(default=1)] 
+                    <br>
+                    approach_limit:<br>
+                    [startInt,myIteratorName,approach_limit,limitFloat(default=1),RateFloat(default=1)]
+                """)
+                process_iterators_text_field = gr.Textbox(label="", interactive=False)
+
             # Actions
 
             fill_checkpoints_button.click(
@@ -159,7 +191,9 @@ class CheckpointLoopScript(scripts.Script):
 
         with gr.Tab("help"):
             gr.Markdown(self.utils.get_help_md())
-        return [checkpoints_input, checkpoints_prompt, margin_size]
+        #return [checkpoints_input, checkpoints_prompt, margin_size]
+        return [checkpoints_input, checkpoints_prompt, margin_size, cycle_prompts_checkbox, enable_iterators_checkbox]
+
 
     def show(self, is_img2img) -> bool:
         self.is_img2_img = is_img2img
@@ -213,7 +247,7 @@ class CheckpointLoopScript(scripts.Script):
         return all_infotexts
 
 
-    def run(self, p: Union[modules.processing.StableDiffusionProcessingTxt2Img, modules.processing.StableDiffusionProcessingImg2Img], checkpoints_text, checkpoints_prompt, margin_size) -> modules.processing.Processed:
+    def run(self, p: Union[modules.processing.StableDiffusionProcessingTxt2Img, modules.processing.StableDiffusionProcessingImg2Img], checkpoints_text, checkpoints_prompt, margin_size, cycle_prompts_checkbox, enable_iterators_checkbox) -> modules.processing.Processed:
 
         image_processed = []
         self.margin_size = margin_size
@@ -226,7 +260,7 @@ class CheckpointLoopScript(scripts.Script):
         
         self.base_prompt: str = p.prompt
 
-        all_batchParams = get_all_batch_params(p, checkpoints_text, checkpoints_prompt)
+        all_batchParams = get_all_batch_params(p, checkpoints_text, checkpoints_prompt, cycle_prompts_checkbox,enable_iterators_checkbox)
 
         total_batch_count = get_total_batch_count(all_batchParams)
         total_steps = p.steps * total_batch_count
