@@ -25,21 +25,30 @@ class BatchParams:
                f"batch_count: {self.batch_count},\n "
                f"clip_skip: {self.clip_skip}\n")
 
+logger = Logger()
 
 def get_all_batch_params(p: Union[modules.processing.StableDiffusionProcessingTxt2Img, modules.processing.StableDiffusionProcessingImg2Img], checkpoints_as_string: str, prompts_as_string: str) -> List[BatchParams]:
+        
+        def getRegexFromOpts(key: str) -> Tuple[str]:
+            sub_pattern = getattr(shared.opts, key)
+            search_pattern = sub_pattern.replace("[", "([").replace("]", "])")
 
-        logger = Logger()
-        logger.debug = False
+            if not re.search(r"\[0-9\]\+|\\d\+", sub_pattern):
+                raise RuntimeError(f'Can\'t find a number with the regex for {key}: "{sub_pattern}"')
+            
+            return search_pattern, sub_pattern
+
         utils = Utils()
 
         def get_batch_count_from_prompt(prompt: str) -> Tuple[int, str]:
             # extracts the batch count from the prompt if specified
-            number_match = re.search(r"\{\{count:([0-9]+)\}\}", prompt)
+            search_pattern, sub_pattern = getRegexFromOpts("batchCountRegex")
+            number_match = re.search(search_pattern, prompt)
             if number_match and number_match.group(1):
                 # Extract the number from the match object
                 number = int(number_match.group(1))  # Use group(1) to get the number inside parentheses
                 number = p.n_iter if number < 1 else number
-                prompt = re.sub(r"\{\{count:[0-9]+\}\}", '', prompt)
+                prompt = re.sub(sub_pattern, '', prompt)
             else:
                 number = p.n_iter
 
@@ -48,20 +57,22 @@ def get_all_batch_params(p: Union[modules.processing.StableDiffusionProcessingTx
         
         def get_clip_skip_from_prompt(prompt: str) -> Tuple[int, str]:
             # extracts the clip skip from the prompt if specified
-            number_match = re.search(r"\{\{clip_skip:([0-9]+)\}\}", prompt)
+            search_pattern, sub_pattern = getRegexFromOpts("clipSkipRegex")
+            number_match = re.search(search_pattern, prompt)
             if number_match and number_match.group(1):
                 # Extract the number from the match object
                 number = int(number_match.group(1))
                 number = shared.opts.data["CLIP_stop_at_last_layers"] if number < 1 else number
                 prompt = (
-                    re.sub(r"\{\{clip_skip:[0-9]+\}\}", '', prompt))
+                    re.sub(sub_pattern, '', prompt))
             else:
                 number = shared.opts.data["CLIP_stop_at_last_layers"]
+
 
             return number, prompt
 
         def split_postive_and_negative_postive_prompt(prompt: str) -> Tuple[str, str]:
-            pattern = r'{{neg:(.*?)}}'
+            pattern = getattr(shared.opts, "negPromptRegex")
             # Split the input string into parts
             parts = re.split(pattern, prompt)
             if len(parts) > 1:
@@ -102,10 +113,12 @@ def get_all_batch_params(p: Union[modules.processing.StableDiffusionProcessingTx
             prompt, neg_prompt = split_postive_and_negative_postive_prompt(prompts[i])
 
 
-            prompt = prompt.replace("{prompt}", p.prompt)
+            prompt = prompt.replace(getattr(shared.opts, "promptRegex"), p.prompt)
             neg_prompt = neg_prompt = p.negative_prompt + neg_prompt
 
 
             all_batch_params.append(BatchParams(checkpoints[i], prompt, neg_prompt, batch_count, clip_skip))
+
+            logger.debug_log(f"batch_params: {all_batch_params[i]}", False)
 
         return all_batch_params

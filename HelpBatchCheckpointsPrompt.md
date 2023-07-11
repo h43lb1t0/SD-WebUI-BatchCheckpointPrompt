@@ -26,6 +26,8 @@ hires fix always uses the same prompts as for the first pass of the checkpoint, 
 - `{{count:number}}` Add this to the end of the prompt to set a different batch count for this checkpoint
 - `{{clip_skip:number}}` Add this to the end of the prompt to set a different clip skip for this checkpoint
 - `{{neg: negativ prompt text here}}`Add this to the end of the prompt, the text will be simply added to the back of the negative prompt
+
+These can be changed in the setting. **you need to know Regexp to use this!** Look at the code in BatchParams.py to see how it works internally.
 <hr>
 
 🔢 adds the `@index:number` to the end of the Checkpoints and Prompts. If already there updates them.
