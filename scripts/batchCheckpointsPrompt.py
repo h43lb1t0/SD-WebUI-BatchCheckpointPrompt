@@ -155,7 +155,7 @@ class CheckpointLoopScript(scripts.Script):
                 gr.Markdown("""
                     Process Iterators: use the pattern [initVal,iteratorLabel,operator,operand,operand,operand...]. The brackets and contents will be replaced by the result of the operator. The initial value will be used first, and any subsequent call to the same iterator label will apply the operator using it's optional operands.<br>
                     <br>
-                        Example:  (close up:[0.2,iterator1,+=,0.1])   -this will start at 0.2 and increase by 0.1 every time this iterator 'iterator1' is encountered - if it's a single prompt, it will be increased every generation.  Functions available: <br>
+                    Example:  (close up:[0.2,iterator1,+=,0.1])   -this will start at 0.2 and increase by 0.1 every time this iterator 'iterator1' is encountered - if it's a single prompt, it will be increased every generation.  Functions available: <br>
                     <br>
                     ++,--,sqrt:<br>
                     [startInt,myIteratorName,++]<br>
