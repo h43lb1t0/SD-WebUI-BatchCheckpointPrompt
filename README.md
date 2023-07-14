@@ -4,6 +4,10 @@ a script for [AUTOMATIC1111](https://github.com/AUTOMATIC1111/stable-diffusion-w
 ### what does it do?
 Creates images with with different checkpoints and prompts. Either different prompts for each checkpoint or the base prompt is inserted into each template for the checkpoint.
 
+##### Forks
+Checkout @RandyHaylor [Fork](https://github.com/RandyHaylor/SD-WebUI-BatchCheckpointPrompt) for some advanced features like:
+- iterate through all checkpoints without the same amount of prompts
+- iterator for prompts (for embedding version testing etc)
 
 #### why use this and not x/y/z plot?
 Different checkpoints need different trigger words, or you want to test the same prompt with a photorealistic model and an anime model, then it would be good if the prompt for the anime model is not `RAW Color photo of ...`
