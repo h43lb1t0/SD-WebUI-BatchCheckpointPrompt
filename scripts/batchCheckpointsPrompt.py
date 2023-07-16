@@ -19,7 +19,7 @@ import modules.scripts as scripts
 import modules.shared as shared
 from modules import processing, script_callbacks
 from modules.processing import process_images, Processed
-from modules.ui_components import (DropdownMulti, FormColumn, FormRow,ToolButton)
+from modules.ui_components import (DropdownMulti, FormColumn, FormRow)
 
 from PIL import Image, ImageDraw, ImageFont
 
@@ -30,6 +30,15 @@ try:
 except:
     subprocess.check_call(["pip", "install", "matplotlib"])
     import matplotlib.font_manager as fm
+
+class ToolButton(gr.Button, gr.components.FormComponent):
+    """Small button with single emoji as text, fits inside gradio forms"""
+
+    def __init__(self, **kwargs):
+        super().__init__(variant="tool", elem_classes=["batch-checkpoint-prompt"], **kwargs)
+
+    def get_block_name(self):
+        return "button"
 
 
 class CheckpointLoopScript(scripts.Script):
@@ -53,6 +62,8 @@ class CheckpointLoopScript(scripts.Script):
         self.font = None
         self.text_margin_left_and_right = 16
         self.fill_values_symbol = "\U0001f4d2"  # 📒
+        self.zero_width_space = '\u200B' # zero width space
+        self.zero_width_joiner = '\u200D' # zero width joiner
         self.save_symbol = "\U0001F4BE"  # 💾
         self.reload_symbol = "\U0001F504"  # 🔄
         self.index_symbol = "\U0001F522"  # 🔢
@@ -99,14 +110,17 @@ class CheckpointLoopScript(scripts.Script):
                 fill_checkpoints_button = ToolButton(
                     value=self.fill_values_symbol, visible=True)
             with FormRow():
+                
                 checkpoints_prompt = gr.inputs.Textbox(
                     lines=5, label="Prompts/prompt templates for Checkpoints", placeholder="prompts/prompt templates (separated with semicolon)")
+                
                 civitai_prompt_fill_button = ToolButton(
-                    value=self.fill_values_symbol, visible=True)
+                    value=self.fill_values_symbol+self.zero_width_joiner, visible=True)
                 add_index_button = ToolButton(
                     value=self.index_symbol, visible=True)
-            margin_size = gr.Slider(
-                label="Grid margins (px)", minimum=0, maximum=10, value=0, step=1)
+            with FormRow():
+                margin_size = gr.Slider(
+                    label="Grid margins (px)", minimum=0, maximum=10, value=0, step=1)
 
             # save and load inputs
 
@@ -114,8 +128,9 @@ class CheckpointLoopScript(scripts.Script):
                 keys = self.save.get_keys()
                 saved_inputs_dropdown = DropdownMulti(
                     choices=keys, label="Saved values")
+                
                 load_button = ToolButton(
-                    value=self.fill_values_symbol, visible=True)
+                    value=self.fill_values_symbol+self.zero_width_space, visible=True)
                 refresh_button = ToolButton(value=self.reload_symbol, visible=True)
 
 
@@ -171,7 +186,7 @@ class CheckpointLoopScript(scripts.Script):
 
     def generate_images_with_SD(self,p: Union[modules.processing.StableDiffusionProcessingTxt2Img, modules.processing.StableDiffusionProcessingImg2Img], batch_params: BatchParams) -> modules.processing.Processed:
         
-        self.logger.debug_log(batch_params)
+        self.logger.debug_log(batch_params, False)
         
         info = None
         info = modules.sd_models.get_closet_checkpoint_match(batch_params.checkpoint)
@@ -181,6 +196,8 @@ class CheckpointLoopScript(scripts.Script):
         p.negative_prompt = batch_params.neg_prompt
         p.n_iter = batch_params.batch_count
         shared.opts.data["CLIP_stop_at_last_layers"] = batch_params.clip_skip
+        """ if batch_params.vae != shared.opts.sd_vae:
+            modules.sd_vae.reload_vae_weights(shared.sd_model, vae_file=batch_params.vae) """
         p.hr_prompt = p.prompt
         p.hr_negative_prompt = p.negative_prompt
         self.logger.debug_log(f"batch count {p.n_iter}")
@@ -239,10 +256,11 @@ class CheckpointLoopScript(scripts.Script):
 
         p.extra_generation_params['Script'] = self.title()
 
+        self.logger.log_info(f'will generate {total_batch_count} images over {len(all_batchParams)} checkpoints)')
 
         for i, checkpoint in enumerate(all_batchParams):
             
-            self.logger.log_info(f"checkpoint: {i+1}/{len(all_batchParams)}")
+            self.logger.log_info(f"checkpoint: {i+1}/{len(all_batchParams)} ({checkpoint.checkpoint})")
 
 
             self.logger.debug_log(
@@ -308,6 +326,7 @@ class CheckpointLoopScript(scripts.Script):
 
         spacing = self.margin_size
 
+        
         for img in image_processed:
             total_width += img.images[0].size[0] + spacing
 
@@ -327,9 +346,9 @@ class CheckpointLoopScript(scripts.Script):
         for i, img in enumerate(img_with_legend):
             y_offset = max_height - img.size[1]
             result_img.paste(((0, 0, 0)), (x_offset, 0, x_offset +
-                             img.size[0] + spacing, max_height + spacing))
+                            img.size[0] + spacing, max_height + spacing))
             result_img.paste(((255, 255, 255)), (x_offset, 0,
-                             x_offset + img.size[0], max_height - min_height))
+                            x_offset + img.size[0], max_height - min_height))
             result_img.paste(img, (x_offset + spacing, y_offset))
 
             x_offset += img.size[0] + spacing
@@ -340,7 +359,7 @@ class CheckpointLoopScript(scripts.Script):
             result_img.save(getFileName(self.save_path_text2img))
 
         return result_img
-
+        
     def add_legend(self, img, checkpoint_name: str):
 
         def find_available_font() -> str:
