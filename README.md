@@ -80,8 +80,8 @@ If you want to contribute something to the script just open a pull request and I
 
 ### Roadmap
 
-- [] delete checkpoints and prompts at index
-- [] only load models for a specific sd version
+- [ ] delete checkpoints and prompts at index
+- [ ] only load models for a specific sd version
 - [x] add negative prompt
 - [x] add basemodel version next to the Checkpointname
 - [x] reload button for save and load
