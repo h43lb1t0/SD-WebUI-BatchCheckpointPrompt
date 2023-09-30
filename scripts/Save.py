@@ -63,7 +63,6 @@ class Save():
             return f'Saved "{name}"'
 
     def read_value(self, name: str) -> Tuple[str, str]:
-        name = name[0]
         data = {}
 
         if os.path.exists(self.file_name):
