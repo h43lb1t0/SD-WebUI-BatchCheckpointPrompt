@@ -28,6 +28,12 @@ class Utils():
             script_path, "HelpBatchCheckpointsPrompt.md")
         self.held_md_url = f"https://raw.githubusercontent.com/h43lb1t0/BatchCheckpointPrompt/main/{self.held_md_file_name}.md"
 
+    def split_prompts(self, text: str) -> List[str]:
+        text = text.split(";")
+        return [text.replace('\n', '').strip(
+        ) for text in text if not text.isspace() and text != '']
+
+
     def remove_index_from_string(self, input: str) -> str:
         return re.sub(r"@index:\d+", "", input).strip()
     
@@ -87,9 +93,7 @@ class Utils():
                 text_string += f"{self.remove_index_from_string(checkpoint)} @index:{i},\n"
             return text_string
         else:
-            text = text.split(";")
-            text = [text.replace('\n', '').strip(
-            ) for text in text if not text.isspace() and text != '']
+            text = self.split_prompts(text)
             for i, text in enumerate(text):
                 text_string += f"{self.remove_index_from_string(text)} @index:{i};\n\n"
             return text_string
@@ -127,3 +131,29 @@ class Utils():
                 "\n", "").replace(",", "")
             text_string += f"{checkpoint_partly_cleaned} @version:{version_string},\n\n"
         return text_string
+
+    def remove_element_at_index(self, checkpoints: str, prompts: str, index: List[int]) -> List[str]:
+        checkpoints_list = self.getCheckpointListFromInput(checkpoints)
+        #prompts = self.remove_index_from_string(prompts)
+        prompts_list = self.split_prompts(prompts)
+        if (len(checkpoints_list) == len(prompts_list) or len(prompts_list) - len(index) <= 0 ):
+            if max(index) <= len(checkpoints_list) -1:
+                for i in index:
+                    checkpoints_list.pop(i)
+                    prompts_list.pop(i)
+                checkpoints = ""
+                for c in checkpoints_list:
+                    checkpoints += f"{c},"
+                prompts = ""
+                for p in prompts_list:
+                    prompts += f"{p};"
+                result = [self.add_index_to_string(checkpoints, True), self.add_index_to_string(prompts, False)]
+                self.logger.debug_log(f"result: {result}")
+                return result
+            else:
+                self.logger.debug_log("index is out of range")
+                return [checkpoints, prompts]
+        else:
+            self.logger.debug_log(
+                f"checkpoints and prompts are not the same length cp: {len(checkpoints_list)} p: {len(prompts_list)}")
+            return [checkpoints, prompts]
