@@ -28,7 +28,7 @@ detailed docs [here](https://github.com/h43lb1t0/BatchCheckpointPrompt/blob/main
 press the 📒 button below the checkpoint text field and all checkpoints will be automatically loaded into the text field
 
 #### get prompts
-If you have installed the [Civitai Helper2](https://github.com/butaixianran/Stable-Diffusion-Webui-Civitai-Helper) extension the 📒 button below the prompt text field will load the previews prompt for each Checkpoint
+If you have installed the [Civitai Helper](https://github.com/zixaphir/Stable-Diffusion-Webui-Civitai-Helper) extension the 📒 button below the prompt text field will load the previews prompt for each Checkpoint
 
 #### Save and Load
 Save your checkpoint prompt combinations and load them again at the next startup
