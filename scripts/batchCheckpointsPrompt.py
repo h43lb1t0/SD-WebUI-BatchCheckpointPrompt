@@ -19,7 +19,7 @@ import modules.scripts as scripts
 import modules.shared as shared
 from modules import processing, script_callbacks
 from modules.processing import process_images, Processed
-from modules.ui_components import (DropdownMulti, FormColumn, FormRow)
+from modules.ui_components import (FormColumn, FormRow)
 
 from PIL import Image, ImageDraw, ImageFont
 
@@ -143,7 +143,7 @@ class CheckpointLoopScript(scripts.Script):
 
             with FormRow():
                 keys = self.save.get_keys()
-                saved_inputs_dropdown = DropdownMulti(
+                saved_inputs_dropdown = gr.components.Dropdown(
                     choices=keys, label="Saved values")
                 
                 load_button = ToolButton(
