@@ -75,7 +75,13 @@ class CheckpointLoopScript(scripts.Script):
     def title(self) -> str:
         return "Batch Checkpoint and Prompt"
 
-    def save_inputs(self, save_name: str, checkpoints: str, prompt_templates: str, overwrite_existing_save: bool, append_existing_save: bool) -> str:
+    def save_inputs(self, save_name: str, checkpoints: str, prompt_templates: str, action : str) -> str:
+        overwrite_existing_save = False
+        append_existing_save = False
+        if action == "Overwrite existing save":
+            overwrite_existing_save = True
+        elif action == "append existing save":
+            append_existing_save = True
         return self.save.store_values(
             save_name.strip(), checkpoints.strip(), prompt_templates.strip(), overwrite_existing_save, append_existing_save)
         
@@ -139,15 +145,11 @@ class CheckpointLoopScript(scripts.Script):
                     lines=1, label="save name", placeholder="save name")
                 save_button = ToolButton(value=self.save_symbol, visible=True)
             with FormRow():
-                overwrite_existing_save_checkbox = gr.components.Checkbox(label="Overwrite existing save")
-                append_existing_save_checkbox = gr.components.Checkbox(label="append existing save")
+                test = gr.components.Radio(["No", "Overwrite existing save", "append existing save"], label="Change saves?")
 
-                """ if overwrite_existing_save_checkbox:
-                    append_existing_save_checkbox.visible = False """
                 save_status = gr.Textbox(label="", interactive=False)
-            
 
-            
+                      
                 
                 
             with gr.Accordion(label='Advanced settings', open=False):
@@ -162,7 +164,7 @@ class CheckpointLoopScript(scripts.Script):
             fill_checkpoints_button.click(
                 fn=self.get_checkpoints, outputs=[checkpoints_input])
             save_button.click(fn=self.save_inputs, inputs=[
-                save_name, checkpoints_input, checkpoints_prompt, overwrite_existing_save_checkbox, append_existing_save_checkbox], outputs=[save_status])
+                save_name, checkpoints_input, checkpoints_prompt, test], outputs=[save_status])
             load_button.click(fn=self.save.read_value, inputs=[saved_inputs_dropdown], outputs=[
                 checkpoints_input, checkpoints_prompt])
             civitai_prompt_fill_button.click(fn=self.civitai_helper.createCivitaiPromptString, inputs=[
