@@ -67,6 +67,7 @@ class CheckpointLoopScript(scripts.Script):
         self.save_symbol = "\U0001F4BE"  # 💾
         self.reload_symbol = "\U0001F504"  # 🔄
         self.index_symbol = "\U0001F522"  # 🔢
+        self.rm_index_symbol = "\U0001F5D1"  # 🗑️
         self.save = Save()
         self.utils = Utils()
         self.civitai_helper = CivitaihelperPrompts()
@@ -106,7 +107,14 @@ class CheckpointLoopScript(scripts.Script):
     
     def refresh_saved(self):
         return gr.Dropdown.update(choices=self.save.get_keys())
-
+    
+    def remove_checkpoints_prompt_at_index(self, checkpoints: str, prompts: str, index: str) -> List[str]:
+        index_list = index.split(",")
+        index_list = [int(i) for i in index_list]
+        return self.utils.remove_element_at_index(checkpoints, prompts, index_list)
+        
+        
+        
 
     def ui(self, is_img2img):
         with gr.Tab("Parameters"):
@@ -124,7 +132,10 @@ class CheckpointLoopScript(scripts.Script):
                     value=self.fill_values_symbol+self.zero_width_joiner, visible=True)
                 add_index_button = ToolButton(
                     value=self.index_symbol, visible=True)
-            with FormRow():
+            with FormColumn():
+                with FormRow():
+                    rm_model_prompt_at_indexes_textbox = gr.components.Textbox(lines=1, label="Remove checkpoint and prompt at index", placeholder="Remove checkpoint and prompt at index (separated with comma)")
+                    rm_model_prompt_at_indexes_button = ToolButton(value=self.rm_index_symbol, visible=True)
                 margin_size = gr.Slider(
                     label="Grid margins (px)", minimum=0, maximum=10, value=0, step=1)
 
@@ -173,6 +184,9 @@ class CheckpointLoopScript(scripts.Script):
                                    checkpoints_input, checkpoints_prompt, add_model_version_checkbox], outputs=[checkpoints_input, checkpoints_prompt])
         
             refresh_button.click(fn=self.refresh_saved, outputs=[saved_inputs_dropdown]) 
+
+            rm_model_prompt_at_indexes_button.click(fn=self.remove_checkpoints_prompt_at_index, inputs=[
+                                   checkpoints_input, checkpoints_prompt, rm_model_prompt_at_indexes_textbox], outputs=[checkpoints_input, checkpoints_prompt])
 
         with gr.Tab("help"):
             gr.Markdown(self.utils.get_help_md())
