@@ -105,13 +105,13 @@ class CheckpointLoopScript(scripts.Script):
     def ui(self, is_img2img):
         with gr.Tab("Parameters"):
             with FormRow():
-                checkpoints_input = gr.inputs.Textbox(
+                checkpoints_input = gr.components.Textbox(
                     lines=5, label="Checkpoint Names", placeholder="Checkpoint names (separated with comma)")
                 fill_checkpoints_button = ToolButton(
                     value=self.fill_values_symbol, visible=True)
             with FormRow():
                 
-                checkpoints_prompt = gr.inputs.Textbox(
+                checkpoints_prompt = gr.components.Textbox(
                     lines=5, label="Prompts/prompt templates for Checkpoints", placeholder="prompts/prompt templates (separated with semicolon)")
                 
                 civitai_prompt_fill_button = ToolButton(
@@ -135,12 +135,12 @@ class CheckpointLoopScript(scripts.Script):
 
 
             with FormRow():
-                save_name = gr.inputs.Textbox(
+                save_name = gr.components.Textbox(
                     lines=1, label="save name", placeholder="save name")
                 save_button = ToolButton(value=self.save_symbol, visible=True)
             with FormRow():
-                overwrite_existing_save_checkbox = gr.inputs.Checkbox(label="Overwrite existing save")
-                append_existing_save_checkbox = gr.inputs.Checkbox(label="append existing save")
+                overwrite_existing_save_checkbox = gr.components.Checkbox(label="Overwrite existing save")
+                append_existing_save_checkbox = gr.components.Checkbox(label="append existing save")
 
                 """ if overwrite_existing_save_checkbox:
                     append_existing_save_checkbox.visible = False """
@@ -155,7 +155,7 @@ class CheckpointLoopScript(scripts.Script):
                     This can take a long time depending on the number of checkpoints! <br>
                     See the help tab for more information
                 """)
-                add_model_version_checkbox = gr.inputs.Checkbox(label="Add model version to checkpoint names")
+                add_model_version_checkbox = gr.components.Checkbox(label="Add model version to checkpoint names")
 
             # Actions
 
