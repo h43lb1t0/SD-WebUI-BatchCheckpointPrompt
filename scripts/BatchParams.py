@@ -7,6 +7,7 @@ from scripts.Logger import Logger
 from scripts.Utils import Utils
 
 import modules
+
 import modules.shared as shared
 
 @dataclass()
@@ -14,6 +15,7 @@ class BatchParams:
     checkpoint: str
     prompt: str
     neg_prompt: str
+    style : List[str]
     batch_count: int = -1
     clip_skip: int = 1
 
@@ -21,6 +23,7 @@ class BatchParams:
         checkpointName: str = os.path.basename(self.checkpoint)
         return( f"BatchParams: {checkpointName},\n " 
                f"prompt: {self.prompt},\n"
+                f"style: {self.style},\n"
                f"neg_prompt: {self.neg_prompt},\n "
                f"batch_count: {self.batch_count},\n "
                f"clip_skip: {self.clip_skip}\n")
@@ -29,11 +32,12 @@ logger = Logger()
 
 def get_all_batch_params(p: Union[modules.processing.StableDiffusionProcessingTxt2Img, modules.processing.StableDiffusionProcessingImg2Img], checkpoints_as_string: str, prompts_as_string: str) -> List[BatchParams]:
         
-        def getRegexFromOpts(key: str) -> Tuple[str]:
+
+        def getRegexFromOpts(key: str, search_for_number: bool = True) -> Tuple[str]:
             sub_pattern = getattr(shared.opts, key)
             search_pattern = sub_pattern.replace("[", "([").replace("]", "])")
 
-            if not re.search(r"\[0-9\]\+|\\d\+", sub_pattern):
+            if not re.search(r"\[0-9\]\+|\\d\+", sub_pattern) and search_for_number:
                 raise RuntimeError(f'Can\'t find a number with the regex for {key}: "{sub_pattern}"')
             
             return search_pattern, sub_pattern
@@ -70,6 +74,20 @@ def get_all_batch_params(p: Union[modules.processing.StableDiffusionProcessingTx
 
 
             return number, prompt
+        
+        def get_style_from_prompt(prompt: str) -> Tuple[str, str]:
+            # extracts the style from the prompt if specified
+            search_pattern, sub_pattern = getRegexFromOpts("styleRegex", False)
+            style_match = re.search(search_pattern, prompt)
+            if style_match and style_match.group(1):
+                # Extract the style from the match object
+                style = style_match.group(1)
+                _, prompt_regex = getRegexFromOpts("promptRegex", False)
+                prompt = re.sub(sub_pattern, prompt_regex, prompt)
+            else:
+                style = ""
+
+            return style, prompt
 
         def split_postive_and_negative_postive_prompt(prompt: str) -> Tuple[str, str]:
             pattern = getattr(shared.opts, "negPromptRegex")
@@ -110,14 +128,18 @@ def get_all_batch_params(p: Union[modules.processing.StableDiffusionProcessingTx
 
             batch_count, prompts[i] = get_batch_count_from_prompt(prompts[i])
             clip_skip, prompts[i] = get_clip_skip_from_prompt(prompts[i])
+            style, prompts[i] = get_style_from_prompt(prompts[i])
             prompt, neg_prompt = split_postive_and_negative_postive_prompt(prompts[i])
+  
+            style = [style] if style != "" else []
+
+            _, prompt_regex = getRegexFromOpts("promptRegex", False)
+
+            prompt = prompt.replace(prompt_regex, p.prompt)
+            neg_prompt = p.negative_prompt + neg_prompt
 
 
-            prompt = prompt.replace(getattr(shared.opts, "promptRegex"), p.prompt)
-            neg_prompt = neg_prompt = p.negative_prompt + neg_prompt
-
-
-            all_batch_params.append(BatchParams(checkpoints[i], prompt, neg_prompt, batch_count, clip_skip))
+            all_batch_params.append(BatchParams(checkpoints[i], prompt, neg_prompt, style, batch_count, clip_skip))
 
             logger.debug_log(f"batch_params: {all_batch_params[i]}", False)
 

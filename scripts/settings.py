@@ -39,4 +39,12 @@ def on_ui_settings():
             section=section)
     )
 
+    shared.opts.add_option(
+        key = "styleRegex",
+        info = shared.OptionInfo(
+            "\{\{style:(.*?)\}\}",
+            "style Regex",
+            section=section)
+    )
+
 script_callbacks.on_ui_settings(on_ui_settings)
