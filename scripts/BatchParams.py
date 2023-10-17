@@ -76,18 +76,20 @@ def get_all_batch_params(p: Union[modules.processing.StableDiffusionProcessingTx
             return number, prompt
         
         def get_style_from_prompt(prompt: str) -> Tuple[str, str]:
+            styles = []
             # extracts the style from the prompt if specified
             search_pattern, sub_pattern = getRegexFromOpts("styleRegex", False)
-            style_match = re.search(search_pattern, prompt)
-            if style_match and style_match.group(1):
-                # Extract the style from the match object
-                style = style_match.group(1)
-                _, prompt_regex = getRegexFromOpts("promptRegex", False)
-                prompt = re.sub(sub_pattern, prompt_regex, prompt)
-            else:
-                style = ""
+            style_matches = re.findall(search_pattern, prompt)
+            if style_matches:
+                for i, stl in enumerate(style_matches):
+                    styles.append(stl)
+                    _, prompt_regex = getRegexFromOpts("promptRegex", False)
+                    replacement = prompt_regex if i == len(style_matches) - 1 else ""
+                    prompt = re.sub(sub_pattern, replacement, prompt, count=1)
 
-            return style, prompt
+                logger.debug_log(f"nr.: {i}, prompt: {prompt}", False)
+
+            return styles, prompt
 
         def split_postive_and_negative_postive_prompt(prompt: str) -> Tuple[str, str]:
             pattern = getattr(shared.opts, "negPromptRegex")
@@ -131,7 +133,6 @@ def get_all_batch_params(p: Union[modules.processing.StableDiffusionProcessingTx
             style, prompts[i] = get_style_from_prompt(prompts[i])
             prompt, neg_prompt = split_postive_and_negative_postive_prompt(prompts[i])
   
-            style = [style] if style != "" else []
 
             _, prompt_regex = getRegexFromOpts("promptRegex", False)
 

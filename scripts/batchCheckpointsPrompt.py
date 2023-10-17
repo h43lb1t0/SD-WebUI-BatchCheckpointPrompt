@@ -211,7 +211,7 @@ class CheckpointLoopScript(scripts.Script):
         p.prompt = batch_params.prompt
         p.negative_prompt = batch_params.neg_prompt
         if len(batch_params.style) > 0:
-            p.styles.extend(batch_params.style)
+            p.styles = batch_params.style
             #self.logger.log_info(f"appliying style: {batch_params.style}")
         p.n_iter = batch_params.batch_count
         shared.opts.data["CLIP_stop_at_last_layers"] = batch_params.clip_skip
