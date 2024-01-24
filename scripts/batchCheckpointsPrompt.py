@@ -60,7 +60,7 @@ class CheckpointLoopScript(scripts.Script):
         self.is_img2_img = None
         self.margin_size = 0
         self.logger = Logger()
-        self.logger.debug = True
+        self.logger.debug = False
         self.font = None
         self.text_margin_left_and_right = 16
         self.fill_values_symbol = "\U0001f4d2"  # 📒
