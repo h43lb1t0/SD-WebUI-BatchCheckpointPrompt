@@ -37,6 +37,7 @@ class Logger():
         print(f"INFO: Batch-Checkpoint-Prompt: {msg}")
 
     def debug_print_attributes(self, obj: any) -> None:
+        print("Atributes: ")
         if self.debug:
             attributes = dir(obj)
             for attribute in attributes:
