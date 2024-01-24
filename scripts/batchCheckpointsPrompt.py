@@ -23,6 +23,8 @@ from modules.ui_components import (FormColumn, FormRow)
 
 from PIL import Image, ImageDraw, ImageFont
 
+import PIL
+
 
 
 try:
@@ -42,19 +44,19 @@ class ToolButton(gr.Button, gr.components.FormComponent):
 
 
 class CheckpointLoopScript(scripts.Script):
-    """
-        The part called by AUTOMATIC1111
+    """Script for generating images with different checkpoints and prompts
+    This calss is called by A1111
     """
 
     def __init__(self):
         current_basedir = scripts.basedir()
         save_path = os.path.join(current_basedir, "outputs")
-        save_path_txt2img = os.path.join(save_path, "txt2img-grids")
+        """ save_path_txt2img = os.path.join(save_path, "txt2img-grids")
         save_path_img2img = os.path.join(save_path, "img2img-grids")
         self.save_path_text2img = os.path.join(
             save_path_txt2img, "Checkpoint-Prompt-Loop")
         self.save_path_imgt2img = os.path.join(
-            save_path_img2img, "Checkpoint-Prompt-Loop")
+            save_path_img2img, "Checkpoint-Prompt-Loop") """
         self.is_img2_img = None
         self.margin_size = 0
         self.logger = Logger()
@@ -71,6 +73,8 @@ class CheckpointLoopScript(scripts.Script):
         self.save = Save()
         self.utils = Utils()
         self.civitai_helper = CivitaihelperPrompts()
+        self.outdir_txt2img_grids = shared.opts.outdir_txt2img_grids
+        self.outdir_img2img_grids = shared.opts.outdir_img2img_grids
 
 
     def title(self) -> str:
@@ -195,13 +199,14 @@ class CheckpointLoopScript(scripts.Script):
     def show(self, is_img2img) -> bool:
         self.is_img2_img = is_img2img
         return True
-
-    # loads the new checkpoint and replaces the original prompt with the new one
-    # and processes the image(s)
         
 
-    def generate_images_with_SD(self,p: Union[modules.processing.StableDiffusionProcessingTxt2Img, modules.processing.StableDiffusionProcessingImg2Img], batch_params: BatchParams) -> modules.processing.Processed:
-        
+    def _generate_images_with_SD(self,p: Union[modules.processing.StableDiffusionProcessingTxt2Img, modules.processing.StableDiffusionProcessingImg2Img],
+                                  batch_params: BatchParams) -> modules.processing.Processed:
+        """ manipulates the StableDiffusionProcessing Obect
+         to generate images with the new checkpoint and prompt
+         and other parameters
+        """
         self.logger.debug_log(batch_params, False)
         
         info = None
@@ -212,7 +217,6 @@ class CheckpointLoopScript(scripts.Script):
         p.negative_prompt = batch_params.neg_prompt
         if len(batch_params.style) > 0:
             p.styles = batch_params.style
-            #self.logger.log_info(f"appliying style: {batch_params.style}")
         p.n_iter = batch_params.batch_count
         shared.opts.data["CLIP_stop_at_last_layers"] = batch_params.clip_skip
         """ if batch_params.vae != shared.opts.sd_vae:
@@ -223,15 +227,13 @@ class CheckpointLoopScript(scripts.Script):
 
         processed = process_images(p)
 
-        # TODO maybe try to add again later
-        # unload the checkpoint to save vram
-        #modules.sd_models.unload_model_weights(shared.sd_model, info)
         return processed
     
 
-    def generate_infotexts(self, pc: Union[modules.processing.StableDiffusionProcessingTxt2Img, modules.processing.StableDiffusionProcessingImg2Img], all_infotexts: List[str], n_iter: int) -> List[str]:
+    def _generate_infotexts(self, pc: Union[modules.processing.StableDiffusionProcessingTxt2Img, modules.processing.StableDiffusionProcessingImg2Img],
+                             all_infotexts: List[str], n_iter: int) -> List[str]:
 
-        def do_stuff(i=0) -> str:
+        def _a1111_infotext_caller(i=0) -> str:
             return processing.create_infotext(pc, pc.all_prompts, pc.all_seeds, pc.all_subseeds, position_in_batch=i)
 
         self.logger.pretty_debug_log(all_infotexts)
@@ -240,11 +242,11 @@ class CheckpointLoopScript(scripts.Script):
         self.logger.debug_print_attributes(pc)
 
         if n_iter == 1:
-            all_infotexts.append(do_stuff())
+            all_infotexts.append(_a1111_infotext_caller())
         else:
             all_infotexts.append(self.base_prompt)
             for i in range(n_iter * pc.batch_size):
-                all_infotexts.append(do_stuff(i))
+                all_infotexts.append(_a1111_infotext_caller(i))
 
         return all_infotexts
 
@@ -254,7 +256,7 @@ class CheckpointLoopScript(scripts.Script):
         image_processed = []
         self.margin_size = margin_size
 
-        def get_total_batch_count(batchParams: List[BatchParams]) -> int:
+        def _get_total_batch_count(batchParams: List[BatchParams]) -> int:
             summe = 0
             for param in batchParams:
                 summe += param.batch_count
@@ -264,7 +266,7 @@ class CheckpointLoopScript(scripts.Script):
 
         all_batchParams = get_all_batch_params(p, checkpoints_text, checkpoints_prompt)
 
-        total_batch_count = get_total_batch_count(all_batchParams)
+        total_batch_count = _get_total_batch_count(all_batchParams)
         total_steps = p.steps * total_batch_count
         self.logger.debug_log(f"total steps: {total_steps}")
 
@@ -286,18 +288,18 @@ class CheckpointLoopScript(scripts.Script):
                 f"Propmpt with replace: {all_batchParams[i].prompt}, neg prompt: {all_batchParams[i].neg_prompt}")
             
 
-            processed_sd_object = self.generate_images_with_SD(p, all_batchParams[i])
+            processed_sd_object = self._generate_images_with_SD(p, all_batchParams[i])
 
             image_processed.append(processed_sd_object)
 
             
-            all_infotexts = self.generate_infotexts(copy(p), all_infotexts, all_batchParams[i].batch_count)
+            all_infotexts = self._generate_infotexts(copy(p), all_infotexts, all_batchParams[i].batch_count)
 
 
             if shared.state.interrupted:
                 break
 
-        img_grid = self.create_grid(image_processed, all_batchParams)
+        img_grid = self._create_grid(image_processed, all_batchParams)
 
         image_processed[0].images.insert(0, img_grid)
         image_processed[0].index_of_first_image = 1
@@ -314,11 +316,13 @@ class CheckpointLoopScript(scripts.Script):
 
     
 
-    def create_grid(self, image_processed: list, all_batch_params: List[BatchParams]):
+    def _create_grid(self, image_processed: list, all_batch_params: List[BatchParams]) -> PIL.Image.Image:
         self.logger.log_info(
             "creating the grid. This can take a while, depending on the amount of images")
 
-        def getFileName(save_path: str) -> str:
+        def _getFileName(save_path: str) -> str:
+            save_path = os.path.join(save_path, "Checkpoint-Prompt-Loop")
+            self.logger.debug_log(f"save path: {save_path}")
             if not os.path.exists(save_path):
                 os.makedirs(save_path)
 
@@ -351,7 +355,7 @@ class CheckpointLoopScript(scripts.Script):
 
         img_with_legend = []
         for i, img in enumerate(image_processed):
-            img_with_legend.append(self.add_legend(
+            img_with_legend.append(self._add_legend(
                 img.images[0], all_batch_params[i].checkpoint))
 
         for img in img_with_legend:
@@ -360,7 +364,6 @@ class CheckpointLoopScript(scripts.Script):
 
         result_img = Image.new('RGB', (total_width, max_height), "white")
 
-        # add images with legend to the grid with margin when selected
         x_offset = -spacing
         for i, img in enumerate(img_with_legend):
             y_offset = max_height - img.size[1]
@@ -373,15 +376,15 @@ class CheckpointLoopScript(scripts.Script):
             x_offset += img.size[0] + spacing
 
         if self.is_img2img:
-            result_img.save(getFileName(self.save_path_imgt2img))
+            result_img.save(_getFileName(self.outdir_img2img_grids))
         else:
-            result_img.save(getFileName(self.save_path_text2img))
+            result_img.save(_getFileName(self.outdir_txt2img_grids))
 
         return result_img
         
-    def add_legend(self, img, checkpoint_name: str):
+    def _add_legend(self, img, checkpoint_name: str):
 
-        def find_available_font() -> str:
+        def _find_available_font() -> str:
 
             if self.font is None:
 
@@ -404,13 +407,13 @@ class CheckpointLoopScript(scripts.Script):
 
             return self.font
 
-        def strip_checkpoint_name(checkpoint_name: str) -> str:
+        def _strip_checkpoint_name(checkpoint_name: str) -> str:
             checkpoint_name = os.path.basename(checkpoint_name)
             return self.utils.get_clean_checkpoint_path(checkpoint_name)
 
-        def calculate_font(draw, text: str, width: int) -> Tuple[int, int]:
+        def _calculate_font(draw, text: str, width: int) -> Tuple[int, int]:
             width -= self.text_margin_left_and_right
-            default_font_path = find_available_font()
+            default_font_path = _find_available_font()
             font_size = 1
             font = ImageFont.truetype(
                 default_font_path, font_size) if default_font_path else ImageFont.load_default()
@@ -426,13 +429,13 @@ class CheckpointLoopScript(scripts.Script):
 
             return font, text_height
 
-        checkpoint_name = strip_checkpoint_name(checkpoint_name)
+        checkpoint_name = _strip_checkpoint_name(checkpoint_name)
 
         width, height = img.size
 
         draw = ImageDraw.Draw(img)
 
-        font, text_height = calculate_font(draw, checkpoint_name, width)
+        font, text_height = _calculate_font(draw, checkpoint_name, width)
 
         new_image = Image.new("RGB", (width, height + text_height), "white")
         new_image.paste(img, (0, text_height))
