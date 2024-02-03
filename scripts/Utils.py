@@ -19,7 +19,7 @@ class Utils():
         methods that are needed in different classes
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.logger = Logger()
         self.logger.debug = False
         script_path = os.path.dirname(
@@ -29,9 +29,9 @@ class Utils():
         self.held_md_url = f"https://raw.githubusercontent.com/h43lb1t0/BatchCheckpointPrompt/main/{self.held_md_file_name}.md"
 
     def split_prompts(self, text: str) -> List[str]:
-        text = text.split(";")
-        return [text.replace('\n', '').strip(
-        ) for text in text if not text.isspace() and text != '']
+        prompt_list = text.split(";")
+        return [prompt.replace('\n', '').strip(
+        ) for prompt in prompt_list if not prompt.isspace() and prompt != '']
 
 
     def remove_index_from_string(self, input: str) -> str:
@@ -71,7 +71,7 @@ class Utils():
         ) for checkpoint in checkpoints if checkpoints if not checkpoint.isspace() and checkpoint != '']
         return checkpoints
 
-    def get_help_md(self) -> None:
+    def get_help_md(self) -> str:
         md = "could not get help file. Check Github for more information"
         if os.path.isfile(self.held_md_file_name):
             with open(self.held_md_file_name) as f:
@@ -88,14 +88,14 @@ class Utils():
     def add_index_to_string(self, text: str, is_checkpoint: bool = True) -> str:
         text_string = ""
         if is_checkpoint:
-            text = self.getCheckpointListFromInput(text)
-            for i, checkpoint in enumerate(text):
+            checkpoint_List = self.getCheckpointListFromInput(text)
+            for i, checkpoint in enumerate(checkpoint_List):
                 text_string += f"{self.remove_index_from_string(checkpoint)} @index:{i},\n"
             return text_string
         else:
-            text = self.split_prompts(text)
-            for i, text in enumerate(text):
-                text_string += f"{self.remove_index_from_string(text)} @index:{i};\n\n"
+            prompt_list = self.split_prompts(text)
+            for i, prompt in enumerate(prompt_list):
+                text_string += f"{self.remove_index_from_string(prompt)} @index:{i};\n\n"
             return text_string
 
     def add_model_version_to_string(self, checkpoints_text: str) -> str:

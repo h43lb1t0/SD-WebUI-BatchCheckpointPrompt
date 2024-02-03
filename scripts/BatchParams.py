@@ -19,7 +19,7 @@ class BatchParams:
     batch_count: int = -1
     clip_skip: int = 1
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         checkpointName: str = os.path.basename(self.checkpoint)
         return( f"BatchParams: {checkpointName},\n " 
                f"prompt: {self.prompt},\n"
@@ -33,7 +33,7 @@ logger = Logger()
 def get_all_batch_params(p: Union[modules.processing.StableDiffusionProcessingTxt2Img, modules.processing.StableDiffusionProcessingImg2Img], checkpoints_as_string: str, prompts_as_string: str) -> List[BatchParams]:
         
 
-        def getRegexFromOpts(key: str, search_for_number: bool = True) -> Tuple[str]:
+        def getRegexFromOpts(key: str, search_for_number: bool = True) -> Tuple[str, str]:
             sub_pattern = getattr(shared.opts, key)
             search_pattern = sub_pattern.replace("[", "([").replace("]", "])")
 
@@ -75,7 +75,7 @@ def get_all_batch_params(p: Union[modules.processing.StableDiffusionProcessingTx
 
             return number, prompt
         
-        def get_style_from_prompt(prompt: str) -> Tuple[str, str]:
+        def get_style_from_prompt(prompt: str) -> Tuple[List[str], str]:
             styles = []
             # extracts the style from the prompt if specified
             search_pattern, sub_pattern = getRegexFromOpts("styleRegex", False)
@@ -115,10 +115,10 @@ def get_all_batch_params(p: Union[modules.processing.StableDiffusionProcessingTx
 
         if len(prompts) != len(checkpoints):
             logger.debug_log(f"len prompt: {len(prompts)}, len checkpoints{len(checkpoints)}")
-            raise RuntimeError(f"amount of prompts don't match with amount of checkpoints")
+            raise RuntimeError("amount of prompts don't match with amount of checkpoints")
 
         if len(prompts) == 0:
-            raise RuntimeError(f"can't run without a checkpoint and prompt")
+            raise RuntimeError("can't run without a checkpoint and prompt")
         
         
         for i in range(len(checkpoints)):

@@ -5,19 +5,19 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "scr
 from scripts.Logger import Logger
 
 import json
-from typing import List, Tuple
+from typing import Dict, List, Tuple
 
 class Save():
     """
         saves and loads checkpoints and prompts in a JSON
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.file_name = "batchCheckpointPromptValues.json"
         self.logger = Logger()
         self.logger.debug = False
 
-    def read_file(self):
+    def read_file(self) -> Dict[str, Tuple[str, str]]:
         try:
             with open(self.file_name, 'r') as f:
                 data = json.load(f)
@@ -40,7 +40,7 @@ class Save():
 
         if append_existing_save:
             self.logger.debug_log(f"Name: {name}")
-            read_values = self.read_value([name])
+            read_values = self.read_value(name)
             self.logger.pretty_debug_log(read_values)
             checkpoints_list = [read_values[0], checkpoints]
             prompts_list = [read_values[1], prompts]

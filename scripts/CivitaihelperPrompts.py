@@ -17,7 +17,7 @@ class CivitaihelperPrompts():
         else:
             return os.path.join(scripts.basedir(), "models", "Stable-diffusion")
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.model_path = self.get_custom_model_folder()
         self.utils = Utils()
         self.logger = Logger()
@@ -29,7 +29,6 @@ class CivitaihelperPrompts():
         path = self.utils.get_clean_checkpoint_path(path)
         path = os.path.join(self.model_path, path)
         self.logger.debug_log(f"{path} -> is file {os.path.isfile(path)}")
-        fullPath = os.path.realpath(path)
         if not os.path.exists(os.path.realpath(path)):
             return "{prompt};"
         model_info = None
@@ -37,6 +36,7 @@ class CivitaihelperPrompts():
             try:
                 model_info = json.load(f)
             except Exception as e:
+                self.logger.debug_log(f"Error loading civitai info: {e}", False)
                 return "{prompt};"
         try:
             self.logger.debug_log(f"len: {len(model_info['images'])}")
@@ -53,10 +53,10 @@ class CivitaihelperPrompts():
             return "{prompt};"
 
     def createCivitaiPromptString(self, checkpoints: str) -> str:
-        checkpoints = self.utils.getCheckpointListFromInput(checkpoints)
+        checkpoints_list = self.utils.getCheckpointListFromInput(checkpoints)
         prompts = ""
         prompts_with_info = ""
-        for i, checkpoint in enumerate(checkpoints):
+        for i, checkpoint in enumerate(checkpoints_list):
             prompts += self.get_civitAi_prompt_from_model(checkpoint)
 
         prompts_with_info += self.utils.add_index_to_string(

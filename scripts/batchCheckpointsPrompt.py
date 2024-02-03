@@ -3,7 +3,7 @@ import os
 import re
 import subprocess
 import sys
-from typing import List, Tuple, Union
+from typing import Any, List, Tuple, Union
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "scripts"))
 from scripts.Utils import Utils
@@ -17,8 +17,8 @@ import gradio as gr
 import modules
 import modules.scripts as scripts
 import modules.shared as shared
-from modules import processing, script_callbacks
-from modules.processing import process_images, Processed
+from modules import processing
+from modules.processing import process_images
 from modules.ui_components import (FormColumn, FormRow)
 
 from PIL import Image, ImageDraw, ImageFont
@@ -36,10 +36,10 @@ except:
 class ToolButton(gr.Button, gr.components.FormComponent):
     """Small button with single emoji as text, fits inside gradio forms"""
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         super().__init__(variant="tool", elem_classes=["batch-checkpoint-prompt"], **kwargs)
 
-    def get_block_name(self):
+    def get_block_name(self) -> str:
         return "button"
 
 
@@ -48,16 +48,8 @@ class CheckpointLoopScript(scripts.Script):
     This calss is called by A1111
     """
 
-    def __init__(self):
-        current_basedir = scripts.basedir()
-        save_path = os.path.join(current_basedir, "outputs")
-        """ save_path_txt2img = os.path.join(save_path, "txt2img-grids")
-        save_path_img2img = os.path.join(save_path, "img2img-grids")
-        self.save_path_text2img = os.path.join(
-            save_path_txt2img, "Checkpoint-Prompt-Loop")
-        self.save_path_imgt2img = os.path.join(
-            save_path_img2img, "Checkpoint-Prompt-Loop") """
-        self.is_img2_img = None
+    def __init__(self) -> None:
+        self.is_img2_img = False
         self.margin_size = 0
         self.logger = Logger()
         self.logger.debug = False
@@ -91,8 +83,8 @@ class CheckpointLoopScript(scripts.Script):
             save_name.strip(), checkpoints.strip(), prompt_templates.strip(), overwrite_existing_save, append_existing_save)
         
 
-    def load_inputs(self, name: str) -> None:
-        values = self.save.read_value(name.strip())
+    """ def load_inputs(self, name: str) -> None:
+        values = self.save.read_value(name.strip()) """
 
     def get_checkpoints(self) -> str:
         checkpoint_list_no_index = list(modules.sd_models.checkpoints_list)
@@ -109,18 +101,18 @@ class CheckpointLoopScript(scripts.Script):
         prompts = self.utils.add_index_to_string(prompts, is_checkpoint=False)
         return checkpoints, prompts
     
-    def refresh_saved(self):
+    def refresh_saved(self) -> gr.Dropdown:
         return gr.Dropdown.update(choices=self.save.get_keys())
     
     def remove_checkpoints_prompt_at_index(self, checkpoints: str, prompts: str, index: str) -> List[str]:
         index_list = index.split(",")
-        index_list = [int(i) for i in index_list]
-        return self.utils.remove_element_at_index(checkpoints, prompts, index_list)
+        index_list_num = [int(i) for i in index_list]
+        return self.utils.remove_element_at_index(checkpoints, prompts, index_list_num)
         
         
         
 
-    def ui(self, is_img2img):
+    def ui(self, is_img2img: bool) -> List[Union[gr.components.Textbox, gr.components.Slider]]:
         with gr.Tab("Parameters"):
             with FormRow():
                 checkpoints_input = gr.components.Textbox(
@@ -194,9 +186,10 @@ class CheckpointLoopScript(scripts.Script):
 
         with gr.Tab("help"):
             gr.Markdown(self.utils.get_help_md())
+
         return [checkpoints_input, checkpoints_prompt, margin_size]
 
-    def show(self, is_img2img) -> bool:
+    def show(self, is_img2img: bool) -> bool:
         self.is_img2_img = is_img2img
         return True
         
@@ -207,7 +200,7 @@ class CheckpointLoopScript(scripts.Script):
          to generate images with the new checkpoint and prompt
          and other parameters
         """
-        self.logger.debug_log(batch_params, False)
+        self.logger.debug_log(str(batch_params), False)
         
         info = None
         info = modules.sd_models.get_closet_checkpoint_match(batch_params.checkpoint)
@@ -233,7 +226,7 @@ class CheckpointLoopScript(scripts.Script):
     def _generate_infotexts(self, pc: Union[modules.processing.StableDiffusionProcessingTxt2Img, modules.processing.StableDiffusionProcessingImg2Img],
                              all_infotexts: List[str], n_iter: int) -> List[str]:
 
-        def _a1111_infotext_caller(i=0) -> str:
+        def _a1111_infotext_caller(i: int = 0) -> str:
             return processing.create_infotext(pc, pc.all_prompts, pc.all_seeds, pc.all_subseeds, position_in_batch=i)
 
         self.logger.pretty_debug_log(all_infotexts)
@@ -251,7 +244,7 @@ class CheckpointLoopScript(scripts.Script):
         return all_infotexts
 
 
-    def run(self, p: Union[modules.processing.StableDiffusionProcessingTxt2Img, modules.processing.StableDiffusionProcessingImg2Img], checkpoints_text, checkpoints_prompt, margin_size) -> modules.processing.Processed:
+    def run(self, p: Union[modules.processing.StableDiffusionProcessingTxt2Img, modules.processing.StableDiffusionProcessingImg2Img], checkpoints_text: str, checkpoints_prompt: str, margin_size: int) -> modules.processing.Processed:
 
         image_processed = []
         self.margin_size = margin_size
@@ -335,7 +328,8 @@ class CheckpointLoopScript(scripts.Script):
 
                 matching_files.sort()
                 last_file = matching_files[-1]
-                number = int(re.search("\d{4}", last_file).group())
+                match = re.search(r"\d{4}", last_file)
+                number = int(match.group()) if match else 0
             else:
                 number = 0
 
@@ -382,9 +376,9 @@ class CheckpointLoopScript(scripts.Script):
 
         return result_img
         
-    def _add_legend(self, img, checkpoint_name: str):
+    def _add_legend(self, img: Image, checkpoint_name: str) -> Image:
 
-        def _find_available_font() -> str:
+        def _find_available_font() -> str: #TODO: make this method more efficient
 
             if self.font is None:
 
@@ -397,11 +391,11 @@ class CheckpointLoopScript(scripts.Script):
 
                     for font_file in font_list:
                         self.font = os.path.abspath(font_file)
-                        if os.path.isfile(self.font):
+                        if os.path.isfile(self.font): # type: ignore
                             self.logger.debug_log("font list font")
-                            return self.font
+                            return self.font # type: ignore
 
-                    self.logger.debug_log("fdefault font")
+                    self.logger.debug_log("default font")
                     return ImageFont.load_default()
                 self.logger.debug_log("DejaVu font")
 
@@ -411,7 +405,7 @@ class CheckpointLoopScript(scripts.Script):
             checkpoint_name = os.path.basename(checkpoint_name)
             return self.utils.get_clean_checkpoint_path(checkpoint_name)
 
-        def _calculate_font(draw, text: str, width: int) -> Tuple[int, int]:
+        def _calculate_font(draw: ImageDraw, text: str, width: int) -> Tuple[int, int]:
             width -= self.text_margin_left_and_right
             default_font_path = _find_available_font()
             font_size = 1
