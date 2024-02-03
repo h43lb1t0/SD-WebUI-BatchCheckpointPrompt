@@ -1,9 +1,10 @@
+"""This script is used to generate images with different checkpoints and prompts"""
 from copy import copy
 import os
 import re
 import subprocess
 import sys
-from typing import List, Tuple, Union
+from typing import Any, List, Tuple, Union
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "scripts"))
 from scripts.Utils import Utils
@@ -17,8 +18,8 @@ import gradio as gr
 import modules
 import modules.scripts as scripts
 import modules.shared as shared
-from modules import processing, script_callbacks
-from modules.processing import process_images, Processed
+from modules import processing
+from modules.processing import process_images
 from modules.ui_components import (FormColumn, FormRow)
 
 from PIL import Image, ImageDraw, ImageFont
@@ -36,10 +37,10 @@ except:
 class ToolButton(gr.Button, gr.components.FormComponent):
     """Small button with single emoji as text, fits inside gradio forms"""
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         super().__init__(variant="tool", elem_classes=["batch-checkpoint-prompt"], **kwargs)
 
-    def get_block_name(self):
+    def get_block_name(self) -> str:
         return "button"
 
 
@@ -48,16 +49,7 @@ class CheckpointLoopScript(scripts.Script):
     This calss is called by A1111
     """
 
-    def __init__(self):
-        current_basedir = scripts.basedir()
-        save_path = os.path.join(current_basedir, "outputs")
-        """ save_path_txt2img = os.path.join(save_path, "txt2img-grids")
-        save_path_img2img = os.path.join(save_path, "img2img-grids")
-        self.save_path_text2img = os.path.join(
-            save_path_txt2img, "Checkpoint-Prompt-Loop")
-        self.save_path_imgt2img = os.path.join(
-            save_path_img2img, "Checkpoint-Prompt-Loop") """
-        self.is_img2_img = None
+    def __init__(self) -> None:
         self.margin_size = 0
         self.logger = Logger()
         self.logger.debug = False
@@ -81,6 +73,17 @@ class CheckpointLoopScript(scripts.Script):
         return "Batch Checkpoint and Prompt"
 
     def save_inputs(self, save_name: str, checkpoints: str, prompt_templates: str, action : str) -> str:
+        """Save the inputs to a file
+
+        Args:
+            save_name (str): the save name
+            checkpoints (str): the checkpoints
+            prompt_templates (str): the prompt templates
+            action (str): Possible values: "No", "Overwrite existing save", "append existing save"
+
+        Returns:
+            str: the save status
+        """
         overwrite_existing_save = False
         append_existing_save = False
         if action == "Overwrite existing save":
@@ -91,10 +94,16 @@ class CheckpointLoopScript(scripts.Script):
             save_name.strip(), checkpoints.strip(), prompt_templates.strip(), overwrite_existing_save, append_existing_save)
         
 
-    def load_inputs(self, name: str) -> None:
-        values = self.save.read_value(name.strip())
+    """ def load_inputs(self, name: str) -> None:
+        values = self.save.read_value(name.strip()) """
 
     def get_checkpoints(self) -> str:
+        """Get the checkpoints from the sd_models module.
+        Add the index to the checkpoints
+
+        Returns:
+            str: the checkpoints
+        """
         checkpoint_list_no_index = list(modules.sd_models.checkpoints_list)
         checkpoint_list_with_index = []
         for i in range(len(checkpoint_list_no_index)):
@@ -103,24 +112,58 @@ class CheckpointLoopScript(scripts.Script):
         return ',\n'.join(checkpoint_list_with_index)
 
     def getCheckpoints_and_prompt_with_index_and_version(self, checkpoint_list: str, prompts: str, add_model_version: bool) -> Tuple[str, str]:
+        """Add the index to the checkpoints and prompts
+        and add the model version to the checkpoints
+
+        Args:
+            checkpoint_list (str): the checkpoint list
+            prompts (str): the prompts
+            add_model_version (bool): add the model version to the checkpoints. EXPERIMENTAL!
+
+        Returns:
+            Tuple[str, str]: the checkpoints and prompts
+        """
         checkpoints = self.utils.add_index_to_string(checkpoint_list)
         if add_model_version:
             checkpoints = self.utils.add_model_version_to_string(checkpoints)
         prompts = self.utils.add_index_to_string(prompts, is_checkpoint=False)
         return checkpoints, prompts
     
-    def refresh_saved(self):
+    def refresh_saved(self) -> gr.Dropdown:
+        """Refresh the saved values dropdown
+
+        Returns:
+            gr.Dropdown: the updated dropdown
+        """
         return gr.Dropdown.update(choices=self.save.get_keys())
     
     def remove_checkpoints_prompt_at_index(self, checkpoints: str, prompts: str, index: str) -> List[str]:
+        """Remove the checkpoint and prompt at the specified index
+
+        Args:
+            checkpoints (str): the checkpoints
+            prompts (str): the prompts
+            index (str): the index
+
+        Returns:
+            List[str]: the checkpoints and prompts
+        """
         index_list = index.split(",")
-        index_list = [int(i) for i in index_list]
-        return self.utils.remove_element_at_index(checkpoints, prompts, index_list)
+        index_list_num = [int(i) for i in index_list]
+        return self.utils.remove_element_at_index(checkpoints, prompts, index_list_num)
         
         
         
 
-    def ui(self, is_img2img):
+    def ui(self, is_img2img: bool) -> List[Union[gr.components.Textbox, gr.components.Slider]]:
+        """Create the UI
+
+        Args:
+            is_img2img (bool): not used.
+
+        Returns:
+            List[Union[gr.components.Textbox, gr.components.Slider]]: the UI components
+        """
         with gr.Tab("Parameters"):
             with FormRow():
                 checkpoints_input = gr.components.Textbox(
@@ -194,10 +237,18 @@ class CheckpointLoopScript(scripts.Script):
 
         with gr.Tab("help"):
             gr.Markdown(self.utils.get_help_md())
+
         return [checkpoints_input, checkpoints_prompt, margin_size]
 
-    def show(self, is_img2img) -> bool:
-        self.is_img2_img = is_img2img
+    def show(self, is_img2img: bool) -> bool:
+        """Show the UI in text2img and img2img mode
+
+        Args:
+            is_img2img (bool): not used 
+
+        Returns:
+            bool: True
+        """
         return True
         
 
@@ -206,8 +257,15 @@ class CheckpointLoopScript(scripts.Script):
         """ manipulates the StableDiffusionProcessing Obect
          to generate images with the new checkpoint and prompt
          and other parameters
+
+        Args:
+            p (Union[modules.processing.StableDiffusionProcessingTxt2Img, modules.processing.StableDiffusionProcessingImg2Img]): the processing object
+            batch_params (BatchParams): the batch parameters
+
+        Returns:
+            modules.processing.Processed: the processed object
         """
-        self.logger.debug_log(batch_params, False)
+        self.logger.debug_log(str(batch_params), False)
         
         info = None
         info = modules.sd_models.get_closet_checkpoint_match(batch_params.checkpoint)
@@ -232,8 +290,26 @@ class CheckpointLoopScript(scripts.Script):
 
     def _generate_infotexts(self, pc: Union[modules.processing.StableDiffusionProcessingTxt2Img, modules.processing.StableDiffusionProcessingImg2Img],
                              all_infotexts: List[str], n_iter: int) -> List[str]:
+        """Generate the infotexts for the images
 
-        def _a1111_infotext_caller(i=0) -> str:
+        Args:
+            pc (Union[modules.processing.StableDiffusionProcessingTxt2Img, modules.processing.StableDiffusionProcessingImg2Img]): the processing object
+            all_infotexts (List[str]): the infotexts created by A1111
+            n_iter (int): the number of iterations
+
+        Returns:
+            List[str]: the infotexts
+        """
+
+        def _a1111_infotext_caller(i: int = 0) -> str:
+            """Call A1111 to create a infotext. This is a helper function.
+
+            Args:
+                i (int, optional): the index. Defaults to 0. Used to get the correct seed and subseed.
+
+            Returns:
+                str: the infotext
+            """
             return processing.create_infotext(pc, pc.all_prompts, pc.all_seeds, pc.all_subseeds, position_in_batch=i)
 
         self.logger.pretty_debug_log(all_infotexts)
@@ -251,12 +327,30 @@ class CheckpointLoopScript(scripts.Script):
         return all_infotexts
 
 
-    def run(self, p: Union[modules.processing.StableDiffusionProcessingTxt2Img, modules.processing.StableDiffusionProcessingImg2Img], checkpoints_text, checkpoints_prompt, margin_size) -> modules.processing.Processed:
+    def run(self, p: Union[modules.processing.StableDiffusionProcessingTxt2Img, modules.processing.StableDiffusionProcessingImg2Img], checkpoints_text: str, checkpoints_prompt: str, margin_size: int) -> modules.processing.Processed:
+        """The main function to generate the images
 
+        Args:
+            p (Union[modules.processing.StableDiffusionProcessingTxt2Img, modules.processing.StableDiffusionProcessingImg2Img]): the processing object
+            checkpoints_text (str): the checkpoints
+            checkpoints_prompt (str): the prompts
+            margin_size (int): the margin size for the grid
+
+        Returns:
+            modules.processing.Processed: the processed object
+        """
         image_processed = []
         self.margin_size = margin_size
 
         def _get_total_batch_count(batchParams: List[BatchParams]) -> int:
+            """Get the total batch count to update the progress bar
+
+            Args:
+                batchParams (List[BatchParams]): the batch parameters
+
+            Returns:
+                int: the total batch count
+            """
             summe = 0
             for param in batchParams:
                 summe += param.batch_count
@@ -316,11 +410,29 @@ class CheckpointLoopScript(scripts.Script):
 
     
 
-    def _create_grid(self, image_processed: list, all_batch_params: List[BatchParams]) -> PIL.Image.Image:
+    def _create_grid(self, image_processed: List[modules.processing.Processed], all_batch_params: List[BatchParams]) -> PIL.Image.Image:
+        """Create the grid with the images
+
+        Args:
+            image_processed (List[modules.processing.Processed]): the images
+            all_batch_params (List[BatchParams]): the batch parameters
+
+        Returns:
+            PIL.Image.Image: the grid
+        """
         self.logger.log_info(
             "creating the grid. This can take a while, depending on the amount of images")
 
         def _getFileName(save_path: str) -> str:
+            """Get the file name for the grid.
+            The files are acsending numbered.
+
+            Args:
+                save_path (str): the save path
+
+            Returns:
+                str: the file name
+            """
             save_path = os.path.join(save_path, "Checkpoint-Prompt-Loop")
             self.logger.debug_log(f"save path: {save_path}")
             if not os.path.exists(save_path):
@@ -335,7 +447,8 @@ class CheckpointLoopScript(scripts.Script):
 
                 matching_files.sort()
                 last_file = matching_files[-1]
-                number = int(re.search("\d{4}", last_file).group())
+                match = re.search(r"\d{4}", last_file)
+                number = int(match.group()) if match else 0
             else:
                 number = 0
 
@@ -382,9 +495,23 @@ class CheckpointLoopScript(scripts.Script):
 
         return result_img
         
-    def _add_legend(self, img, checkpoint_name: str):
+    def _add_legend(self, img: Image, checkpoint_name: str) -> Image:
+        """Add the checkpoint name to the image
 
-        def _find_available_font() -> str:
+        Args:
+            img (Image): the image
+            checkpoint_name (str): the checkpoint name
+
+        Returns:
+            Image: the image with the checkpoint name as legend
+        """
+
+        def _find_available_font() -> str: #TODO: make this method more efficient
+            """Find an available font
+
+            Returns:
+                str: the font
+            """
 
             if self.font is None:
 
@@ -397,21 +524,39 @@ class CheckpointLoopScript(scripts.Script):
 
                     for font_file in font_list:
                         self.font = os.path.abspath(font_file)
-                        if os.path.isfile(self.font):
+                        if os.path.isfile(self.font): # type: ignore
                             self.logger.debug_log("font list font")
-                            return self.font
+                            return self.font # type: ignore
 
-                    self.logger.debug_log("fdefault font")
+                    self.logger.debug_log("default font")
                     return ImageFont.load_default()
                 self.logger.debug_log("DejaVu font")
 
             return self.font
 
         def _strip_checkpoint_name(checkpoint_name: str) -> str:
+            """Remove the path from the checkpoint name
+
+            Args:
+                checkpoint_name (str): the checkpoint with path
+
+            Returns:
+                str: the checkpoint name
+            """
             checkpoint_name = os.path.basename(checkpoint_name)
             return self.utils.get_clean_checkpoint_path(checkpoint_name)
 
-        def _calculate_font(draw, text: str, width: int) -> Tuple[int, int]:
+        def _calculate_font(draw: ImageDraw, text: str, width: int) -> Tuple[int, int]:
+            """Calculate the font size for the text according to the image width
+
+            Args:
+                draw (ImageDraw): the draw object
+                text (str): the text
+                width (int): the image width
+
+            Returns:
+                Tuple[int, int]: the font and the text height
+            """
             width -= self.text_margin_left_and_right
             default_font_path = _find_available_font()
             font_size = 1

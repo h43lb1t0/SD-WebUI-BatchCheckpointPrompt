@@ -1,3 +1,4 @@
+"""This module provides utility functions."""
 from scripts.Logger import Logger
 import os
 import re
@@ -19,7 +20,7 @@ class Utils():
         methods that are needed in different classes
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.logger = Logger()
         self.logger.debug = False
         script_path = os.path.dirname(
@@ -29,15 +30,36 @@ class Utils():
         self.held_md_url = f"https://raw.githubusercontent.com/h43lb1t0/BatchCheckpointPrompt/main/{self.held_md_file_name}.md"
 
     def split_prompts(self, text: str) -> List[str]:
-        text = text.split(";")
-        return [text.replace('\n', '').strip(
-        ) for text in text if not text.isspace() and text != '']
+        """Split the prompts by the ; and remove empty strings and newlines
+
+        Args:
+            text (str): the input string
+        Returns:
+            List[str]: a list of prompts
+        """
+        prompt_list = text.split(";")
+        return [prompt.replace('\n', '').strip(
+        ) for prompt in prompt_list if not prompt.isspace() and prompt != '']
 
 
     def remove_index_from_string(self, input: str) -> str:
+        """Remove the index from the string
+
+        Args:
+            input (str): the input string
+        Returns:
+            str: the string without the index
+        """
         return re.sub(r"@index:\d+", "", input).strip()
     
     def remove_model_version_from_string(self, checkpoints_text: str) -> str:
+        """Remove the model version from the string
+
+        Args:
+            input (str): the input string with all checkpoints
+        Returns:
+            str: the string without the model version
+        """
         patterns = [
             '@version:sd1', 
             '@version:sd2', 
@@ -58,9 +80,24 @@ class Utils():
         return checkpoints_text
 
     def get_clean_checkpoint_path(self, checkpoint: str) -> str:
+        """Remove the checkpoint hash from the filename
+
+        Args:
+            input (str): the input string with hash
+        Returns:
+            str: the string without the hash
+        """
         return re.sub(r' \[.*?\]', '', checkpoint).strip()
 
     def getCheckpointListFromInput(self, checkpoints_text: str, clean: bool = True) -> List[str]:
+        """Get a list of checkpoints from the input string
+
+        Args:
+            checkpoints_text (str): the input string with all checkpoints
+            clean (bool): remove the index and hash from the string
+        Returns:
+            List[str]: a list of checkpoints
+        """
         self.logger.debug_log(f"checkpoints: {checkpoints_text}")
         checkpoints_text = self.remove_model_version_from_string(checkpoints_text)
         if clean:
@@ -71,7 +108,13 @@ class Utils():
         ) for checkpoint in checkpoints if checkpoints if not checkpoint.isspace() and checkpoint != '']
         return checkpoints
 
-    def get_help_md(self) -> None:
+    def get_help_md(self) -> str:
+        """Gets the help md file. 
+        If the file is not localy found downloads it from the github repository
+
+        Returns:
+            str: the help md file as a string
+        """
         md = "could not get help file. Check Github for more information"
         if os.path.isfile(self.held_md_file_name):
             with open(self.held_md_file_name) as f:
@@ -86,19 +129,35 @@ class Utils():
         return md
 
     def add_index_to_string(self, text: str, is_checkpoint: bool = True) -> str:
+        """Add the index to the string
+
+        Args:
+            text (str): the input string
+            is_checkpoint (bool): if the string is a checkpoint lits or a prompt list
+        Returns:
+            str: the string with the index
+        """
         text_string = ""
         if is_checkpoint:
-            text = self.getCheckpointListFromInput(text)
-            for i, checkpoint in enumerate(text):
+            checkpoint_List = self.getCheckpointListFromInput(text)
+            for i, checkpoint in enumerate(checkpoint_List):
                 text_string += f"{self.remove_index_from_string(checkpoint)} @index:{i},\n"
             return text_string
         else:
-            text = self.split_prompts(text)
-            for i, text in enumerate(text):
-                text_string += f"{self.remove_index_from_string(text)} @index:{i};\n\n"
+            prompt_list = self.split_prompts(text)
+            for i, prompt in enumerate(prompt_list):
+                text_string += f"{self.remove_index_from_string(prompt)} @index:{i};\n\n"
             return text_string
 
     def add_model_version_to_string(self, checkpoints_text: str) -> str:
+        """Add the model version to the string.
+        EXPERIMENTAL!
+
+        Args:
+            checkpoints_text (str): the input string with all checkpoints
+        Returns:
+            str: the string with the model version
+        """
         text_string = ""
         checkpoints_not_cleaned = self.getCheckpointListFromInput(
             checkpoints_text, clean=False)
@@ -133,8 +192,17 @@ class Utils():
         return text_string
 
     def remove_element_at_index(self, checkpoints: str, prompts: str, index: List[int]) -> List[str]:
+        """Remove the element at the given index from the string
+
+        Args:
+            checkpoints (str): the input string with all checkpoints
+            prompts (str): the input string with all prompts
+            index (List[int]): the indices to remove
+        Returns:
+            List[str]: a list with the new checkpoints and prompts
+        """
+
         checkpoints_list = self.getCheckpointListFromInput(checkpoints)
-        #prompts = self.remove_index_from_string(prompts)
         prompts_list = self.split_prompts(prompts)
         if (len(checkpoints_list) == len(prompts_list) or len(prompts_list) - len(index) <= 0 ):
             if max(index) <= len(checkpoints_list) -1:

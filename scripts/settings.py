@@ -1,11 +1,9 @@
-import modules.scripts as scripts
-import gradio as gr
-import os
-
+"""This module adds options to the settings window."""
 from modules import shared
 from modules import script_callbacks
 
-def on_ui_settings():
+def on_ui_settings() -> None:
+    """Adds options to the settings window."""
     section = ("batchCP ", "batch checkpoint prompt")
     shared.opts.add_option(
         key = "promptRegex",
