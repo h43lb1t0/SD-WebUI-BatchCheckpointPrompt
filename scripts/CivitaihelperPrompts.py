@@ -1,3 +1,6 @@
+"""This modules uses the JSON files created by the 
+https://github.com/butaixianran/Stable-Diffusion-Webui-Civitai-Helper extension"""
+
 import sys
 import os
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "scripts"))
@@ -10,12 +13,10 @@ import json
 
 
 class CivitaihelperPrompts():
-
-    def get_custom_model_folder(self) -> str:
-        if shared.cmd_opts.ckpt_dir and os.path.isdir(shared.cmd_opts.ckpt_dir):
-            return shared.cmd_opts.ckpt_dir
-        else:
-            return os.path.join(scripts.basedir(), "models", "Stable-diffusion")
+    """
+    This class is used to get the prompts from the JSON files created by the
+    Stable-Diffusion-Webui-Civitai-Helper extension
+    """
 
     def __init__(self) -> None:
         self.model_path = self.get_custom_model_folder()
@@ -23,7 +24,27 @@ class CivitaihelperPrompts():
         self.logger = Logger()
         self.logger.debug = False
 
+    def get_custom_model_folder(self) -> str:
+        """Get the custom model folder from the command line options or the default folder
+
+        Returns:
+            str: the model folder path
+        """
+        if shared.cmd_opts.ckpt_dir and os.path.isdir(shared.cmd_opts.ckpt_dir):
+            return shared.cmd_opts.ckpt_dir
+        else:
+            return os.path.join(scripts.basedir(), "models", "Stable-diffusion")
+
+
     def get_civitAi_prompt_from_model(self, path: str) -> str:
+        """Get the prompt from the civitai.info file
+
+        Args:
+            path (str): the path to the model
+
+        Returns:
+            str: the prompt
+        """
         path = path.replace(".ckpt", ".civitai.info").replace(
             ".safetensors", ".civitai.info")
         path = self.utils.get_clean_checkpoint_path(path)
@@ -53,6 +74,15 @@ class CivitaihelperPrompts():
             return "{prompt};"
 
     def createCivitaiPromptString(self, checkpoints: str) -> str:
+        """Create a string with all the prompts from the checkpoints
+        Indices are added to the prompts
+
+        Args:
+            checkpoints (str): the checkpoints
+
+        Returns:
+            str: the prompt string with indices
+        """
         checkpoints_list = self.utils.getCheckpointListFromInput(checkpoints)
         prompts = ""
         prompts_with_info = ""

@@ -1,3 +1,4 @@
+"""This module provides methods to save and load checkpoints and prompts in a JSON file."""
 import sys
 import os
 
@@ -18,6 +19,12 @@ class Save():
         self.logger.debug = False
 
     def read_file(self) -> Dict[str, Tuple[str, str]]:
+        """Read the JSON file and return the data
+
+        Returns:
+            Dict[str, Tuple[str, str]]: the data from the JSON file. 
+            The key is the name of the save and the value is a tuple of checkpoints and prompts
+        """
         try:
             with open(self.file_name, 'r') as f:
                 data = json.load(f)
@@ -26,6 +33,18 @@ class Save():
             return {"None": ("", "")}
 
     def store_values(self, name: str, checkpoints: str, prompts: str, overwrite_existing_save: bool, append_existing_save: bool) -> str:
+        """Store the checkpoints and prompts in a JSON file	
+
+        Args:
+            name (str): the name of the save
+            checkpoints (str): the checkpoints
+            prompts (str): the prompts
+            overwrite_existing_save (bool): if True, overwrite a existing save with the same name
+            append_existing_save (bool): if True, append a existing save with the same name
+            
+        Returns:
+            str: a message that indicates if the save was successful
+        """
         data = {}
 
         # If the JSON file already exists, load the data into the dictionary
@@ -63,6 +82,14 @@ class Save():
             return f'Saved "{name}"'
 
     def read_value(self, name: str) -> Tuple[str, str]:
+        """Get the checkpoints and prompts from a save
+
+        Args:
+            name (str): the name of the save
+
+        Returns:
+            Tuple[str, str]: the checkpoints and prompts
+        """
         data = {}
 
         if os.path.exists(self.file_name):
@@ -76,5 +103,10 @@ class Save():
         return x, y
 
     def get_keys(self) -> List[str]:
+        """Get the keys from the JSON file
+
+        Returns:
+            List[str]: a list of keys
+        """
         data = self.read_file()
         return list(data.keys())
