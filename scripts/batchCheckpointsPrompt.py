@@ -215,7 +215,8 @@ class CheckpointLoopScript(scripts.Script):
                     This can take a long time depending on the number of checkpoints! <br>
                     See the help tab for more information
                 """)
-                add_model_version_checkbox = gr.components.Checkbox(label="Add model version to checkpoint names")
+                add_model_version_checkbox = gr.components.Checkbox(label="Add model version to checkpoint names", interactive=False
+                                                                    , info="Not working in current webui versions")
 
             # Actions
 
