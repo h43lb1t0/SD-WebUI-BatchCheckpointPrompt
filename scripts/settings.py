@@ -14,6 +14,14 @@ def on_ui_settings() -> None:
     )
 
     shared.opts.add_option(
+        key = "widthHeightRegex",
+        info = shared.OptionInfo(
+            "\{\{size:(\d+)x(\d+)\}\}",
+            "Width and height Regex",
+            section=section)
+    )
+
+    shared.opts.add_option(
         key = "batchCountRegex",
         info = shared.OptionInfo(
             "\{\{count:[0-9]+\}\}",
