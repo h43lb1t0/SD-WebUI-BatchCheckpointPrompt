@@ -21,6 +21,8 @@ class BatchParams:
         style (List[str]): the style (A1111 styles)
         batch_count (int, optional): the batch count. Defaults to -1. (don't overwrite the UI value)
         clip_skip (int, optional): the clip skip. Defaults to 1.
+        width (int, optional): the width. Defaults to -1. (don't overwrite the UI value)
+        height (int, optional): the height. Defaults to -1. (don't overwrite the UI value)
     """
     checkpoint: str
     prompt: str
@@ -28,6 +30,8 @@ class BatchParams:
     style : List[str]
     batch_count: int = -1
     clip_skip: int = 1
+    width: int = -1
+    height: int = -1
 
     def __repr__(self) -> str:
         checkpointName: str = os.path.basename(self.checkpoint)
@@ -36,7 +40,8 @@ class BatchParams:
                 f"style: {self.style},\n"
                f"neg_prompt: {self.neg_prompt},\n "
                f"batch_count: {self.batch_count},\n "
-               f"clip_skip: {self.clip_skip}\n")
+               f"clip_skip: {self.clip_skip}\n"
+               f"size: {self.width}x{self.height}")
 
 logger = Logger()
 
@@ -140,6 +145,29 @@ def get_all_batch_params(p: Union[modules.processing.StableDiffusionProcessingTx
             logger.debug_log(f"nr.: {i}, prompt: {prompt}", False)
 
         return styles, prompt
+    
+    def get_image_size_from_prompt(prompt: str) -> Tuple[int, int, str]:
+        """Extracts the image size from the prompt if specified, else uses the default value
+
+        Args:
+            prompt (str): the prompt
+
+        Returns:
+            Tuple[int, int, str]: the width, height and the prompt.
+            If the width and height are not specified, -1 is returned.
+        """
+        search_pattern, sub_pattern = getRegexFromOpts("widthHeightRegex", False) #{{size:[0-9]+x[0-9]+}}
+        number_matches = re.search(search_pattern, prompt)
+        if number_matches:
+            try:
+                width, height = map(int, number_matches.groups())
+            except ValueError:
+                raise RuntimeError(f"Can't convert the image size to an integer: {number_matches[0]}")
+            prompt = re.sub(sub_pattern, '', prompt)
+        else:
+            width, height = -1, -1
+
+        return width, height, prompt
 
     def split_postive_and_negative_postive_prompt(prompt: str) -> Tuple[str, str]:
         """Splits the prompt into a positive and negative prompt.
@@ -189,6 +217,7 @@ def get_all_batch_params(p: Union[modules.processing.StableDiffusionProcessingTx
         batch_count, prompts[i] = get_batch_count_from_prompt(prompts[i])
         clip_skip, prompts[i] = get_clip_skip_from_prompt(prompts[i])
         style, prompts[i] = get_style_from_prompt(prompts[i])
+        width, height, prompts[i] = get_image_size_from_prompt(prompts[i])
         prompt, neg_prompt = split_postive_and_negative_postive_prompt(prompts[i])
 
 
@@ -198,7 +227,7 @@ def get_all_batch_params(p: Union[modules.processing.StableDiffusionProcessingTx
         neg_prompt = p.negative_prompt + neg_prompt
 
 
-        all_batch_params.append(BatchParams(checkpoints[i], prompt, neg_prompt, style, batch_count, clip_skip))
+        all_batch_params.append(BatchParams(checkpoints[i], prompt, neg_prompt, style, batch_count, clip_skip, width, height))
 
         logger.debug_log(f"batch_params: {all_batch_params[i]}", False)
 

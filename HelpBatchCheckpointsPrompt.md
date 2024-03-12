@@ -23,12 +23,15 @@ hires fix always uses the same prompts as for the first pass of the checkpoint, 
 - `promptA; promptB` Separate the prompts with a semicolon.
 - `@index:number` Is automatically added after the checkpoint name when you load the checkpoint by 📒 button.
 - `{prompt}` insert this at the point in the checkpoint specific prompt where you want the positive prompt to be inserted.
+- `{{size:WIDTHxHEIGHT}}` defines the size of the image. When not set, the default size is set in the UI.
 - `{{count:number}}` Add this to the end of the prompt to set a different batch count for this checkpoint
 - `{{clip_skip:number}}` Add this to the end of the prompt to set a different clip skip for this checkpoint
 - `{{neg: negativ prompt text here}}`Add this to the end of the prompt, the text will be simply added to the back of the negative prompt
 - `{{style:StyleName}}` Add this to your prompt to use a Style saved in A1111. If you have `{prompt}` in your style and your prompt template looks something like `template prompt {{style:StyleName}}` the end prompt will look like `part of the style before {prompt}, prompt template, base prompt, part of the style prompt after {prompt}`
 
 These can be changed in the setting. **you need to know Regexp to use this!** Look at the code in BatchParams.py to see how it works internally.
+
+**SDXL:** If you use SDXL and 1.X/2.X checkpoints set the *VAE* to `Automatic` and set the appropriate sizes for each prompt.
 <hr>
 
 🔢 adds the `@index:number` to the end of the Checkpoints and Prompts. If already there updates them.

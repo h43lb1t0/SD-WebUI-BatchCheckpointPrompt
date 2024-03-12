@@ -215,7 +215,8 @@ class CheckpointLoopScript(scripts.Script):
                     This can take a long time depending on the number of checkpoints! <br>
                     See the help tab for more information
                 """)
-                add_model_version_checkbox = gr.components.Checkbox(label="Add model version to checkpoint names")
+                add_model_version_checkbox = gr.components.Checkbox(label="Add model version to checkpoint names", interactive=False
+                                                                    , info="Not working in current webui versions")
 
             # Actions
 
@@ -253,7 +254,7 @@ class CheckpointLoopScript(scripts.Script):
         
 
     def _generate_images_with_SD(self,p: Union[modules.processing.StableDiffusionProcessingTxt2Img, modules.processing.StableDiffusionProcessingImg2Img],
-                                  batch_params: BatchParams) -> modules.processing.Processed:
+                                  batch_params: BatchParams, orginal_size: Tuple[int, int]) -> modules.processing.Processed:
         """ manipulates the StableDiffusionProcessing Obect
          to generate images with the new checkpoint and prompt
          and other parameters
@@ -261,6 +262,7 @@ class CheckpointLoopScript(scripts.Script):
         Args:
             p (Union[modules.processing.StableDiffusionProcessingTxt2Img, modules.processing.StableDiffusionProcessingImg2Img]): the processing object
             batch_params (BatchParams): the batch parameters
+            orginal_size (Tuple[int, int]): the original size specified in the UI
 
         Returns:
             modules.processing.Processed: the processed object
@@ -277,8 +279,12 @@ class CheckpointLoopScript(scripts.Script):
             p.styles = batch_params.style
         p.n_iter = batch_params.batch_count
         shared.opts.data["CLIP_stop_at_last_layers"] = batch_params.clip_skip
-        """ if batch_params.vae != shared.opts.sd_vae:
-            modules.sd_vae.reload_vae_weights(shared.sd_model, vae_file=batch_params.vae) """
+        if batch_params.width > 0 and batch_params.height > 0:
+            self.logger.debug_print_attributes(p, False)
+            p.height = batch_params.height
+            p.width = batch_params.width
+        else:
+            p.height, p.width = orginal_size
         p.hr_prompt = p.prompt
         p.hr_negative_prompt = p.negative_prompt
         self.logger.debug_log(f"batch count {p.n_iter}")
@@ -373,6 +379,9 @@ class CheckpointLoopScript(scripts.Script):
 
         self.logger.log_info(f'will generate {total_batch_count} images over {len(all_batchParams)} checkpoints)')
 
+        original_size = p.width, p.height
+        
+
         for i, checkpoint in enumerate(all_batchParams):
             
             self.logger.log_info(f"checkpoint: {i+1}/{len(all_batchParams)} ({checkpoint.checkpoint})")
@@ -382,7 +391,7 @@ class CheckpointLoopScript(scripts.Script):
                 f"Propmpt with replace: {all_batchParams[i].prompt}, neg prompt: {all_batchParams[i].neg_prompt}")
             
 
-            processed_sd_object = self._generate_images_with_SD(p, all_batchParams[i])
+            processed_sd_object = self._generate_images_with_SD(p, all_batchParams[i], original_size)
 
             image_processed.append(processed_sd_object)
 

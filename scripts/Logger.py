@@ -36,13 +36,14 @@ class Logger():
             print(f"\n\tDEBUG: {msg}")
             self.log_caller()
 
-    def pretty_debug_log(self, msg: Any) -> None:
+    def pretty_debug_log(self, msg: Any, debug: bool = False) -> None:
         """Print a debug message with pprint if debugging is enabled
 
         Args:
             msg (Any): the message to print
+            debug (bool, optional): if True, the message will be printed regardless of the debugging state.
         """
-        if self.debug:
+        if self.debug or debug:
             print("\n\n\n")
             pprint(msg)
             self.log_caller()
@@ -56,14 +57,14 @@ class Logger():
         """
         print(f"INFO: Batch-Checkpoint-Prompt: {msg}")
 
-    def debug_print_attributes(self, obj: Any) -> None:
+    def debug_print_attributes(self, obj: Any, debug: bool = False) -> None:
         """Print the attributes of an object
 
         Args:
             obj (Any): the object to print the attributes from
         """
         print("Atributes: ")
-        if self.debug:
+        if self.debug or debug:
             attributes = dir(obj)
             for attribute in attributes:
                 if not attribute.startswith("__"):
