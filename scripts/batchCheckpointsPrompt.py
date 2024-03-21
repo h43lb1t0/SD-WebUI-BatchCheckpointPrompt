@@ -284,7 +284,7 @@ class CheckpointLoopScript(scripts.Script):
             p.height = batch_params.height
             p.width = batch_params.width
         else:
-            p.height, p.width = orginal_size
+            p.width, p.height = orginal_size
         p.hr_prompt = p.prompt
         p.hr_negative_prompt = p.negative_prompt
         self.logger.debug_log(f"batch count {p.n_iter}")
