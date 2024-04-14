@@ -17,6 +17,7 @@ class BatchParams:
     Args:
         checkpoint (str): the checkpoint name
         prompt (str): the prompt
+        hr_prompt (str): the hires. fix prompt
         neg_prompt (str): the negative prompt
         style (List[str]): the style (A1111 styles)
         batch_count (int, optional): the batch count. Defaults to -1. (don't overwrite the UI value)
@@ -26,6 +27,7 @@ class BatchParams:
     """
     checkpoint: str
     prompt: str
+    hr_prompt: str
     neg_prompt: str
     style : List[str]
     batch_count: int = -1
@@ -218,16 +220,17 @@ def get_all_batch_params(p: Union[modules.processing.StableDiffusionProcessingTx
         clip_skip, prompts[i] = get_clip_skip_from_prompt(prompts[i])
         style, prompts[i] = get_style_from_prompt(prompts[i])
         width, height, prompts[i] = get_image_size_from_prompt(prompts[i])
-        prompt, neg_prompt = split_postive_and_negative_postive_prompt(prompts[i])
+        prompt_template, neg_prompt = split_postive_and_negative_postive_prompt(prompts[i])
 
 
         _, prompt_regex = getRegexFromOpts("promptRegex", False)
 
-        prompt = prompt.replace(prompt_regex, p.prompt)
+        prompt = prompt_template.replace(prompt_regex, p.prompt)
+        hr_prompt = prompt_template.replace(prompt_regex, p.hr_prompt)
         neg_prompt = p.negative_prompt + neg_prompt
 
 
-        all_batch_params.append(BatchParams(checkpoints[i], prompt, neg_prompt, style, batch_count, clip_skip, width, height))
+        all_batch_params.append(BatchParams(checkpoints[i], prompt,hr_prompt, neg_prompt, style, batch_count, clip_skip, width, height))
 
         logger.debug_log(f"batch_params: {all_batch_params[i]}", False)
 
