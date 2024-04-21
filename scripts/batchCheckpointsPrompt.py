@@ -18,6 +18,7 @@ import gradio as gr
 import modules
 import modules.scripts as scripts
 import modules.shared as shared
+from modules.shared_state import State as shared_state
 from modules import processing
 from modules.processing import process_images
 from modules.ui_components import (FormColumn, FormRow)
@@ -383,6 +384,7 @@ class CheckpointLoopScript(scripts.Script):
         
 
         for i, checkpoint in enumerate(all_batchParams):
+
             
             self.logger.log_info(f"checkpoint: {i+1}/{len(all_batchParams)} ({checkpoint.checkpoint})")
 
@@ -399,7 +401,7 @@ class CheckpointLoopScript(scripts.Script):
             all_infotexts = self._generate_infotexts(copy(p), all_infotexts, all_batchParams[i].batch_count)
 
 
-            if shared.state.interrupted:
+            if shared.state.interrupted or shared.state.stopping_generation:
                 break
 
         img_grid = self._create_grid(image_processed, all_batchParams)
