@@ -1,3 +1,6 @@
+# The project is no longer being maintained. It might still work in A1111 and Forge, it might not.
+
+
 # batch Checkpoints with Prompt
 a script for [AUTOMATIC1111](https://github.com/AUTOMATIC1111/stable-diffusion-webui)
 
